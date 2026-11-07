@@ -3,7 +3,7 @@
  */
 
 var TZ_ = 'Asia/Kuala_Lumpur';
-var APP_VERSION_ = '0.2.0';
+var APP_VERSION_ = '0.3.0';
 
 /** Ralat yang selamat dipaparkan kepada pengguna. Ralat lain jadi 500 generik. */
 class ApiError extends Error {
@@ -151,6 +151,12 @@ function updateObject_(name, rowNumber, patch) {
     return Object.prototype.hasOwnProperty.call(patch, h) ? String(patch[h] === null ? '' : patch[h]) : cur[i];
   });
   range.setValues([out]);
+}
+
+/** Buang baris (nombor baris sebenar). Panggil dalam withLock_. Dibuang dari bawah supaya nombor tidak beralih. */
+function deleteRows_(name, rowNumbers) {
+  var sh = getSheet_(name);
+  rowNumbers.slice().sort(function (a, b) { return b - a; }).forEach(function (r) { sh.deleteRow(r); });
 }
 
 // ---------- Validasi ----------

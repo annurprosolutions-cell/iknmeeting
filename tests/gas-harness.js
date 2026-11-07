@@ -14,6 +14,7 @@ function makeSheet(name) {
   sh.getMaxColumns = () => sh.maxCols;
   sh.insertColumnsAfter = (a, n) => { sh.maxCols += n; };
   sh.setFrozenRows = () => {};
+  sh.deleteRow = (r) => { sh.data.splice(r - 1, 1); };
   sh.getRange = (r, c, nr = 1, nc = 1) => ({
     getValues: () => { grow(r + nr - 1, c + nc - 1); return Array.from({ length: nr }, (_, i) => Array.from({ length: nc }, (_, j) => sh.data[r - 1 + i][c - 1 + j])); },
     setValues: (v) => { grow(r + nr - 1, c + nc - 1); v.forEach((row, i) => row.forEach((x, j) => { sh.data[r - 1 + i][c - 1 + j] = x; })); },
@@ -25,7 +26,7 @@ function makeSheet(name) {
 }
 
 function create() {
-  const state = { sheets: {}, props: { GOOGLE_CLIENT_ID: 'client-123.apps.googleusercontent.com' }, cache: {}, triggers: [], folders: [], mail: [], fetchResponses: {} };
+  const state = { sheets: {}, props: { GOOGLE_CLIENT_ID: 'client-123.apps.googleusercontent.com' }, cache: {}, triggers: [], folders: [], mail: [], fetchResponses: {}, advancedCalls: [] };
   const ss = {
     getId: () => 'SHEET1',
     setSpreadsheetTimeZone: () => {},
@@ -62,10 +63,11 @@ function create() {
     ContentService: { MimeType: { JSON: 'json' }, createTextOutput: (t) => ({ text: t, setMimeType() { return this; } }) },
     Logger: { log: () => {} },
     DriveApp: {
-      getFolderById: (id) => { const f = state.folders.find(x => x.id === id); if (!f) throw new Error('x'); return f; },
+      getFolderById: (id) => { const f = state.folders.find(x => x.id === id); if (!f) throw new Error('folder tiada ' + id); return f; },
       getFoldersByName: () => ({ hasNext: () => false }),
       createFolder: (n) => mkFolder(n)
     },
+    Drive: { Permissions: { create: (res, id, opts) => { state.advancedCalls.push({ id, email: res.emailAddress, opts }); state.folders.find(x => x.id === id).viewers.add(res.emailAddress); } } },
     Session: { getEffectiveUser: () => ({ getEmail: () => 'owner@gmail.com' }) },
     ScriptApp: {
       WeekDay: { MONDAY: 'MON', SUNDAY: 'SUN' },
@@ -75,13 +77,17 @@ function create() {
     }
   };
   function mkFolder(n) {
-    const f = { id: 'FOLDER_' + state.folders.length, name: n, getId() { return this.id; }, isTrashed: () => false, getFoldersByName: (nm) => { const m = state.folders.filter(x => x.parent === f && x.name === nm); let i = 0; return { hasNext: () => i < m.length, next: () => m[i++] }; }, createFolder: (nm) => { const c = mkFolder(nm); c.parent = f; return c; } };
+    const f = { id: 'FOLDER_' + state.folders.length, name: n, viewers: new Set(), getId() { return this.id; }, isTrashed: () => false, setName(x) { this.name = x; }, getName() { return this.name },
+      addViewer(e) { this.viewers.add(e); }, removeViewer(e) { this.viewers.delete(e); },
+      getFoldersByName: (nm) => { const m = state.folders.filter(x => x.parent === f && x.name === nm); let i = 0; return { hasNext: () => i < m.length, next: () => m[i++] }; },
+      createFolder: (nm) => { const c = mkFolder(nm); c.parent = f; return c; } };
     state.folders.push(f); return f;
   }
   sandbox.globalThis = sandbox;
   const ctx = vm.createContext(sandbox);
-  ['Utils', 'Audit', 'Auth', 'Users', 'Code', 'Setup'].forEach(n => {
-    vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'apps-script', n + '.gs'), 'utf8'), ctx, { filename: n + '.gs' });
+  const dir = path.join(__dirname, '..', 'apps-script');
+  ['Utils', ...fs.readdirSync(dir).filter(f => f.endsWith('.gs') && f !== 'Utils.gs').map(f => f.replace('.gs', ''))].forEach(n => {
+    vm.runInContext(fs.readFileSync(path.join(dir, n + '.gs'), 'utf8'), ctx, { filename: n + '.gs' });
   });
   const call = (action, data, token) => {
     const out = vm.runInContext('doPost', ctx)({ postData: { contents: JSON.stringify({ action, token, data }) } });

@@ -201,3 +201,67 @@ textarea.input { resize: vertical; min-height: 120px; }
   .main { margin: 0; padding: 0; max-width: none; }
   .card, .table-wrap { box-shadow: none; border-color: #999; }
 }
+
+/* ---------- Fasa 2: mesyuarat ---------- */
+.section { margin-bottom: 16px; }
+.center { text-align: center; }
+.back { margin: 0 0 8px; font-size: 14px; }
+.back a { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; }
+.banner-info { border-color: var(--info); color: var(--info); background: var(--surface); }
+
+.mcard-list { display: grid; gap: 8px; margin-bottom: 8px; }
+.mcard { display: flex; align-items: center; gap: 16px; padding: 12px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow-card); color: var(--text); text-decoration: none; min-height: 72px; }
+.mcard:hover { border-color: var(--primary); }
+.mcard-date { flex: none; width: 56px; text-align: center; border-right: 1px solid var(--border); padding-right: 16px; }
+.mcard-day { display: block; font-size: 28px; font-weight: 700; line-height: 1.1; color: var(--primary); }
+.mcard-month { display: block; font-size: 14px; color: var(--muted); text-transform: uppercase; }
+.mcard-body { flex: 1; min-width: 0; }
+.mcard-title { margin: 0; font-weight: 600; font-size: 17px; overflow-wrap: anywhere; }
+.mcard-meta { margin: 2px 0 6px; }
+.mcard-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+.badge-live::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; animation: pulse 1.4s ease-in-out infinite; }
+
+.seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.seg-btn { min-height: 44px; padding: 0 16px; border: 0; border-right: 1px solid var(--border); background: transparent; color: var(--text); font: 500 16px/1 var(--font); cursor: pointer; }
+.seg-btn:last-child { border-right: 0; }
+.seg-btn.is-on { background: var(--primary); color: var(--on-primary); font-weight: 600; }
+.seg-btn:disabled { opacity: .5; cursor: not-allowed; }
+.seg + .toolbar, .seg { margin-bottom: 4px; }
+
+.detail-head .page-head { align-items: flex-start; }
+.detail-head h1 { overflow-wrap: anywhere; }
+.meta { margin: 8px 0 12px; display: grid; gap: 4px; }
+.meta-row { display: grid; grid-template-columns: 160px 1fr; gap: 12px; }
+.meta dt { color: var(--muted); }
+.meta dd { margin: 0; overflow-wrap: anywhere; }
+@media (max-width: 639px) { .meta-row { grid-template-columns: 1fr; gap: 0; } .meta dt { font-size: 14px; } }
+
+.tabs { display: flex; gap: 4px; overflow-x: auto; border-bottom: 1px solid var(--border); margin: 16px 0 0; }
+.tab { flex: none; min-height: 44px; padding: 0 16px; border: 0; border-bottom: 3px solid transparent; background: transparent; color: var(--muted); font: 500 16px/1 var(--font); cursor: pointer; }
+.tab.is-on { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+.tabpanel { border-top-left-radius: 0; border-top-right-radius: 0; border-top: 0; }
+
+.agenda-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.agenda-item { display: flex; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.agenda-item:last-child { border-bottom: 0; padding-bottom: 0; }
+.agenda-seq { flex: none; width: 32px; height: 32px; border-radius: 50%; background: var(--tint); color: var(--primary); display: inline-flex; align-items: center; justify-content: center; font-weight: 700; }
+.agenda-title { margin: 0 0 2px; font-weight: 600; font-size: 17px; }
+.agenda-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 4px; }
+.att-mine { margin-bottom: 16px; }
+
+.form-wide { max-width: 880px; }
+.grid-form { display: grid; gap: 0 16px; grid-template-columns: 1fr; }
+@media (min-width: 640px) { .grid-form { grid-template-columns: 1fr 1fr; } .grid-3 { grid-template-columns: repeat(3, 1fr); } }
+.check-row { display: flex; align-items: center; gap: 12px; min-height: 44px; }
+.check-row input, .picker-row input { width: 22px; height: 22px; flex: none; accent-color: var(--primary); }
+.check-row label { font-weight: 400; margin: 0; }
+.form-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin: 16px 0 32px; }
+@media (max-width: 639px) { .form-actions .btn { flex: 1 1 100%; } }
+
+.picker-count { margin: 6px 0; }
+.picker-list { max-height: 320px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+.picker-row { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 6px 12px; border-bottom: 1px solid var(--border); cursor: pointer; }
+.picker-row:last-of-type { border-bottom: 0; }
+.picker-row:hover { background: var(--row-hover); }
+.picker-text { display: grid; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.picker-empty { padding: 12px; margin: 0; }

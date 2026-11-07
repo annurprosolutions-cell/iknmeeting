@@ -35,9 +35,9 @@ function countActiveAdmins_(users) {
   return users.filter(function (u) { return u.role === 'Admin' && u.status === 'Aktif'; }).length;
 }
 
-/** Hook Fasa 2: buang akses Drive (removeViewer) bila pengguna dinyahaktifkan. */
-function afterUserDeactivated_(email) {
-  if (typeof globalThis.syncDriveOnUserDeactivated_ === 'function') globalThis.syncDriveOnUserDeactivated_(email);
+/** Selepas role/status berubah: laras akses Drive (dipanggil di luar lock kerana Drive perlahan). */
+function afterUserChanged_(email) {
+  try { syncUserDriveAccess_(email); } catch (e) { Logger.log('syncUserDriveAccess_ gagal: ' + e); }
 }
 
 function apiUsersSave_(session, data) {
@@ -49,6 +49,7 @@ function apiUsersSave_(session, data) {
   var role = cleanEnum_(data.role || 'Ahli', ROLES_, 'Role');
   var status = cleanEnum_(data.status || 'Aktif', USER_STATUS_, 'Status');
 
+  var driveChanged = false;
   var result = withLock_(function () {
     var table = readTable_('users');
     var existing = table.rows.filter(function (r) { return r.email === email; })[0];
@@ -67,7 +68,7 @@ function apiUsersSave_(session, data) {
         (existing.role !== role ? 'Role ' + existing.role + ' -> ' + role : 'Kemas kini');
       invalidateUsers_();
       audit_(session.email, action, 'users', email, detail);
-      if (action === 'user.deactivate') afterUserDeactivated_(email);
+      driveChanged = existing.role !== role || existing.status !== status;
       return { created: false, email: email };
     }
     appendObject_('users', {
@@ -76,15 +77,18 @@ function apiUsersSave_(session, data) {
     });
     invalidateUsers_();
     audit_(session.email, 'user.create', 'users', email, 'Role ' + role);
+    driveChanged = role === 'Admin' || role === 'Setiausaha';
     return { created: true, email: email };
   });
+  if (driveChanged) afterUserChanged_(email);
   return result;
 }
 
 function apiUsersDeactivate_(session, data) {
   requireRole_(session, ['Admin']);
   var email = normEmail_(data && data.email);
-  return withLock_(function () {
+  var changed = false;
+  var out = withLock_(function () {
     var table = readTable_('users');
     var row = table.rows.filter(function (r) { return r.email === email; })[0];
     if (!row) throw new ApiError(404, 'Pengguna tidak dijumpai.');
@@ -98,9 +102,11 @@ function apiUsersDeactivate_(session, data) {
     updateObject_('users', row._row, { status: 'Tidak Aktif' });
     invalidateUsers_();
     audit_(session.email, 'user.deactivate', 'users', email, 'Dinyahaktifkan');
-    afterUserDeactivated_(email);
+    changed = true;
     return { email: email, status: 'Tidak Aktif' };
   });
+  if (changed) afterUserChanged_(email);
+  return out;
 }
 
 /**
@@ -118,7 +124,8 @@ function apiUsersImport_(session, data) {
   var roleMap = {};
   ROLES_.forEach(function (r) { roleMap[r.toLowerCase()] = r; });
 
-  return withLock_(function () {
+  var added = [];
+  var out = withLock_(function () {
     var existing = {};
     readTable_('users').rows.forEach(function (r) { existing[r.email] = true; });
     var toAdd = [], skipped = [];
@@ -150,6 +157,9 @@ function apiUsersImport_(session, data) {
     appendObjects_('users', toAdd);
     if (toAdd.length) invalidateUsers_();
     audit_(session.email, 'user.import', 'users', '', toAdd.length + ' ditambah, ' + skipped.length + ' dilangkau');
+    added = toAdd;
     return { added: toAdd.length, skipped: skipped };
   });
+  added.forEach(function (u) { if (u.role === 'Admin' || u.role === 'Setiausaha') afterUserChanged_(u.email); });
+  return out;
 }

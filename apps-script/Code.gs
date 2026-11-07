@@ -13,7 +13,16 @@ function getRoutes_() {
     'users.list':       { fn: apiUsersList_ },
     'users.save':       { fn: apiUsersSave_ },
     'users.deactivate': { fn: apiUsersDeactivate_ },
-    'users.import':     { fn: apiUsersImport_ }
+    'users.import':     { fn: apiUsersImport_ },
+    'meetings.list':    { fn: apiMeetingsList_ },
+    'meetings.get':     { fn: apiMeetingsGet_ },
+    'meetings.create':  { fn: apiMeetingsCreate_ },
+    'meetings.update':  { fn: apiMeetingsUpdate_ },
+    'meetings.publish': { fn: apiMeetingsPublish_ },
+    'meetings.cancel':  { fn: apiMeetingsCancel_ },
+    'meetings.setStatus': { fn: apiMeetingsSetStatus_ },
+    'members.set':      { fn: apiMembersSet_ },
+    'attendance.set':   { fn: apiAttendanceSet_ }
   };
 }
 

@@ -182,3 +182,30 @@ export function errorBanner(message, onRetry) {
 export function skeletonRows(n = 5) {
   return h('div', { class: 'skeleton-list', 'aria-hidden': 'true' }, Array.from({ length: n }, () => h('div', { class: 'skeleton' })));
 }
+
+// ---------- Tarikh mesyuarat ----------
+const MONTHS = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogo', 'Sep', 'Okt', 'Nov', 'Dis'];
+const DAYS = ['Ahad', 'Isnin', 'Selasa', 'Rabu', 'Khamis', 'Jumaat', 'Sabtu'];
+
+/** Tarikh hari ini di Malaysia (YYYY-MM-DD), tanpa bergantung pada zon masa peranti. */
+export function todayMyt() {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kuala_Lumpur', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+}
+export function dayMonth(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+  return m ? { day: String(Number(m[3])), month: MONTHS[Number(m[2]) - 1] } : { day: '', month: '' };
+}
+export function weekday(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+  return m ? DAYS[new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])).getUTCDay()] : '';
+}
+export function fmtTimeRange(start, end) { return end ? `${start} - ${end}` : start || ''; }
+
+const MEETING_BADGE = { 'Draf': 'muted', 'Dijadualkan': 'info', 'Sedang Berlangsung': 'teal', 'Selesai': 'success', 'Dibatalkan': 'danger' };
+export function meetingStatusBadge(status) {
+  const b = badge(status, MEETING_BADGE[status] || 'muted');
+  if (status === 'Sedang Berlangsung') b.classList.add('badge-live');
+  return b;
+}
+const ATT_BADGE = { 'Hadir': 'success', 'Tidak Hadir': 'danger', 'Mungkin': 'warning', 'Belum Jawab': 'muted' };
+export function attendanceBadge(a) { return badge(a || 'Belum Jawab', ATT_BADGE[a] || 'muted'); }

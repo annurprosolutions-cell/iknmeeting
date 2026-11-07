@@ -16,9 +16,10 @@ setThemeMode(getThemeMode());
 
 router.define('/login', { public: true, view: () => import('./views/login.js') });
 router.define('/dashboard', { roles: ALL, view: () => import('./views/dashboard.js'), meta: ph('Dashboard') });
-router.define('/meetings', { roles: ALL, view: () => import('./views/placeholder.js'), meta: ph('Senarai Mesyuarat', 'Fasa 2') });
-router.define('/meetings/new', { roles: STAFF, view: () => import('./views/placeholder.js'), meta: ph('Mesyuarat Baharu', 'Fasa 2') });
-router.define('/meetings/:id', { roles: ALL, view: () => import('./views/placeholder.js'), meta: ph('Butiran Mesyuarat', 'Fasa 2') });
+router.define('/meetings', { roles: ALL, view: () => import('./views/meetings.js'), meta: ph('Mesyuarat') });
+router.define('/meetings/new', { roles: STAFF, view: () => import('./views/meeting-form.js'), meta: ph('Mesyuarat Baharu') });
+router.define('/meetings/:id/edit', { roles: STAFF, view: () => import('./views/meeting-form.js'), meta: ph('Edit Mesyuarat') });
+router.define('/meetings/:id', { roles: ALL, view: () => import('./views/meeting-detail.js'), meta: ph('Butiran Mesyuarat') });
 router.define('/actions', { roles: ALL, view: () => import('./views/placeholder.js'), meta: ph('Tindakan Saya', 'Fasa 5') });
 router.define('/users', { roles: ADMIN, view: () => import('./views/users.js'), meta: ph('Pengurusan Pengguna') });
 router.define('/audit', { roles: ADMIN, view: () => import('./views/placeholder.js'), meta: ph('Audit Log & Tetapan', 'Fasa 6') });
