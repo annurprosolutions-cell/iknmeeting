@@ -14,6 +14,7 @@ t('setupSystem cipta 11 tab + seed', () => {
   assert.strictEqual(Object.keys(state.sheets).length, 11);
   assert.strictEqual(state.sheets.users.data[1][0], 'admin@contoh.com');
   assert.strictEqual(state.sheets.users.data[1][3], 'Admin');
+  assert.strictEqual(state.sheets.users.data[0][8], 'photo'); assert.strictEqual(state.sheets.meetings.data[0][18], 'tahun');
   assert.ok(state.sheets.settings.data.length >= 11);
   assert.strictEqual(state.sheets.users.formats[1], '@');
   assert.deepStrictEqual(Array.from(state.sheets.users.validations[4].list), ['Admin', 'Setiausaha', 'Pengerusi', 'Ahli']);
@@ -163,6 +164,30 @@ t('had global: 50 kegagalan menyekat semua; tiada audit tambahan bila disekat', 
   const n = state.sheets.audit_log.data.length;
   assert.strictEqual(login('sec@contoh.com').error.code, 429);
   assert.strictEqual(state.sheets.audit_log.data.length, n);
+});
+
+t('migrasi setupSystem: tab lama tanpa lajur baharu ditambah, data kekal', () => {
+  state.sheets.users.data[0] = state.sheets.users.data[0].slice(0, 8); state.sheets.users.data.forEach((r, i) => { if (i) r.length = 8; });
+  state.sheets.meetings.data[0] = state.sheets.meetings.data[0].slice(0, 18);
+  const before = state.sheets.users.data[1].slice(0, 8).join('|');
+  run('setupSystem()');
+  assert.strictEqual(state.sheets.users.data[0][8], 'photo'); assert.strictEqual(state.sheets.meetings.data[0][18], 'tahun');
+  assert.strictEqual(state.sheets.users.data[1].slice(0, 8).join('|'), before);
+});
+t('gambar profil: hanya JPEG data URL kecil; boleh dibuang; tidak masuk cache pengguna', () => {
+  Object.keys(state.cache).filter(k => k.startsWith('lf_')).forEach(k => delete state.cache[k]); // reset had cubaan ujian sebelum ini
+  const jpg = 'data:image/jpeg;base64,' + 'A'.repeat(400);
+  assert.ok(call('users.save', { email: 'sec@contoh.com', name: 'Puan Sec', role: 'Setiausaha', photo: jpg }, adminTok).ok);
+  assert.strictEqual(call('users.save', { email: 'sec@contoh.com', name: 'Puan Sec', role: 'Setiausaha', photo: 'data:image/png;base64,AAAA' }, adminTok).error.code, 400);
+  assert.strictEqual(call('users.save', { email: 'sec@contoh.com', name: 'Puan Sec', role: 'Setiausaha', photo: '<script>' }, adminTok).error.code, 400);
+  assert.strictEqual(call('users.save', { email: 'sec@contoh.com', name: 'Puan Sec', role: 'Setiausaha', photo: 'data:image/jpeg;base64,' + 'A'.repeat(31000) }, adminTok).error.code, 400);
+  assert.strictEqual(call('users.list', {}, adminTok).data.users.find(u => u.email === 'sec@contoh.com').photo, jpg);
+  assert.strictEqual(call('me.get', {}, login('sec@contoh.com').data.token).data.user.photo, jpg);
+  assert.ok(!('photo' in JSON.parse(state.cache['users_v1'].v)[0]), 'cache pengguna tanpa gambar');
+  assert.ok(call('users.save', { email: 'sec@contoh.com', name: 'Puan Sec Baharu', role: 'Setiausaha' }, adminTok).ok);
+  assert.strictEqual(call('users.list', {}, adminTok).data.users.find(u => u.email === 'sec@contoh.com').photo, jpg, 'tanpa kunci photo = kekal');
+  assert.ok(call('users.save', { email: 'sec@contoh.com', name: 'Puan Sec Baharu', role: 'Setiausaha', photo: '' }, adminTok).ok);
+  assert.strictEqual(call('users.list', {}, adminTok).data.users.find(u => u.email === 'sec@contoh.com').photo, '');
 });
 
 console.log(`\n${passed} ujian lulus` + (process.exitCode ? ', ADA YANG GAGAL' : ''));

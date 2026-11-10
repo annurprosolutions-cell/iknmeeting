@@ -63,6 +63,31 @@ function driveShareMany_(folderId, emails) {
   return emails.filter(function (e) { return !driveShare_(folderId, e); });
 }
 
+// ---------- Folder terhad (Bahan Bicara: Pengerusi & Setiausaha sahaja) ----------
+// Mesti DI LUAR folder mesyuarat: subfolder mewarisi perkongsian ahli. Struktur: akar/Terhad/<id mesyuarat>.
+// Admin dan Setiausaha mewarisi akses melalui folder akar.
+
+function getRestrictedFolder_(meetingId, create) {
+  var root = DriveApp.getFolderById(getSettings_().root_folder_id);
+  var it = root.getFoldersByName('Terhad');
+  var top = it.hasNext() ? it.next() : (create ? root.createFolder('Terhad') : null);
+  if (!top) return null;
+  var it2 = top.getFoldersByName(meetingId);
+  return it2.hasNext() ? it2.next() : (create ? top.createFolder(meetingId) : null);
+}
+
+/** Alih akses folder terhad daripada pengerusi lama kepada baharu (hanya jika folder wujud dan mesyuarat sudah terbit). */
+function moveRestrictedAccess_(m, oldChair, newChair) {
+  try {
+    var f = getRestrictedFolder_(m.id, false);
+    if (!f) return;
+    var cur = readTable_('meetings').rows.filter(function (x) { return x.id === m.id; })[0];
+    var live = cur && STATUS_WITH_FOLDER_ACCESS_.indexOf(cur.status) !== -1;
+    if (oldChair && oldChair !== newChair) driveUnshare_(f.getId(), oldChair);
+    if (newChair && live && isActiveUser_(newChair)) driveShare_(f.getId(), newChair);
+  } catch (e) { Logger.log('moveRestrictedAccess_ gagal: ' + e); }
+}
+
 function isActiveUser_(email) {
   var u = findUser_(email);
   return Boolean(u && u.status === 'Aktif');
@@ -87,5 +112,14 @@ function syncUserDriveAccess_(email) {
     if (!m || !m.drive_folder_id) return;
     if (active && STATUS_WITH_FOLDER_ACCESS_.indexOf(m.status) !== -1) driveShare_(m.drive_folder_id, email);
     else driveUnshare_(m.drive_folder_id, email);
+  });
+  // Folder terhad: pengerusi mesyuarat
+  Object.keys(meetings).forEach(function (id) {
+    var m = meetings[id];
+    if (m.pengerusi_email !== email) return;
+    var f = getRestrictedFolder_(id, false);
+    if (!f) return;
+    if (active && STATUS_WITH_FOLDER_ACCESS_.indexOf(m.status) !== -1) driveShare_(f.getId(), email);
+    else driveUnshare_(f.getId(), email);
   });
 }

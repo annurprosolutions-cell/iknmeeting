@@ -22,7 +22,17 @@ function getRoutes_() {
     'meetings.cancel':  { fn: apiMeetingsCancel_ },
     'meetings.setStatus': { fn: apiMeetingsSetStatus_ },
     'members.set':      { fn: apiMembersSet_ },
-    'attendance.set':   { fn: apiAttendanceSet_ }
+    'attendance.set':   { fn: apiAttendanceSet_ },
+    'agenda.save':      { fn: apiAgendaSave_ },
+    'agenda.delete':    { fn: apiAgendaDelete_ },
+    'agenda.reorder':   { fn: apiAgendaReorder_ },
+    'agenda.setStatus': { fn: apiAgendaSetStatus_ },
+    'materials.upload':   { fn: apiMaterialsUpload_ },
+    'materials.register': { fn: apiMaterialsRegister_ },
+    'materials.replace':  { fn: apiMaterialsReplace_ },
+    'materials.archive':  { fn: apiMaterialsArchive_ },
+    'materials.update':   { fn: apiMaterialsUpdate_ },
+    'materials.logOpen':  { fn: apiMaterialsLogOpen_ }
   };
 }
 

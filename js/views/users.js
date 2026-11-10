@@ -1,5 +1,5 @@
 // S-13 Pengurusan Pengguna (Admin sahaja). Server tetap menyemak role.
-import { h, clear, button, busy, badge, field, openModal, confirmDialog, toast, emptyState, errorBanner, skeletonRows, fmtDateTime } from '../ui.js';
+import { h, clear, button, busy, badge, field, openModal, confirmDialog, toast, emptyState, errorBanner, skeletonRows, fmtDateTime, avatar, resizePhoto } from '../ui.js';
 import { icon } from '../icons.js';
 import { api } from '../api.js';
 
@@ -54,7 +54,7 @@ export function render(container, { user }) {
       h('tbody', {}, rows.map((u) => {
         const self = u.email === user.email;
         return h('tr', {},
-          td('Nama', h('strong', { text: u.name }), self ? h('span', { class: 'muted', text: ' (anda)' }) : null),
+          td('Nama', h('div', { class: 'name-cell' }, avatar(u, 36), h('span', {}, h('strong', { text: u.name }), self ? h('span', { class: 'muted', text: ' (anda)' }) : null))),
           td('Emel', u.email),
           td('Jawatan', u.position || '-'),
           td('Role', u.role),
@@ -79,14 +79,29 @@ export function render(container, { user }) {
   function openForm(u) {
     const editing = Boolean(u);
     const f = {
-      email: field({ label: 'Emel Google', type: 'email', value: u ? u.email : '', required: true, readOnly: editing, hint: editing ? 'Emel tidak boleh diubah.' : 'Mesti emel yang digunakan untuk log masuk Google.', autocomplete: 'off' }),
       name: field({ label: 'Nama', value: u ? u.name : '', required: true, maxlength: 100 }),
+      email: field({ label: 'Emel Google', type: 'email', value: u ? u.email : '', required: true, readOnly: editing, hint: editing ? 'Emel tidak boleh diubah.' : 'Mesti emel yang digunakan untuk log masuk Google.', autocomplete: 'off' }),
       position: field({ label: 'Jawatan / jabatan', value: u ? u.position : '', maxlength: 120 }),
       role: field({ label: 'Role', value: u ? u.role : 'Ahli', options: ROLES, required: true }),
       status: field({ label: 'Status', value: u ? u.status : 'Aktif', options: ['Aktif', 'Tidak Aktif'] })
     };
+    // Gambar profil: undefined = tidak diubah, '' = buang, data URL = baharu
+    let photo;
+    const preview = h('span', {}, avatar(u || { name: '?' }, 64));
+    const photoInput = h('input', { type: 'file', accept: 'image/png,image/jpeg', class: 'file-input', id: 'photo-file', 'aria-label': 'Pilih gambar' });
+    const photoErr = h('p', { class: 'field-error', hidden: true });
+    const removeBtn = button('Buang gambar', { kind: 'ghost', onClick: () => { photo = ''; photoInput.value = ''; preview.replaceChildren(avatar({ name: f.name.input.value || '?' }, 64)); } });
+    photoInput.addEventListener('change', async () => {
+      photoErr.hidden = true;
+      if (!photoInput.files[0]) return;
+      try { photo = await resizePhoto(photoInput.files[0]); preview.replaceChildren(avatar({ photo }, 64)); }
+      catch (e) { photoErr.textContent = e.message; photoErr.hidden = false; photoInput.value = ''; }
+    });
+    const photoField = h('div', { class: 'field' }, h('label', { for: 'photo-file', text: 'Gambar (pilihan)' }),
+      h('div', { class: 'photo-field' }, preview, h('div', { class: 'grow' }, photoInput)), photoErr, editing && u.photo ? removeBtn : null,
+      h('p', { class: 'field-hint', text: 'Gambar dikecilkan automatik. Dipaparkan pada senarai ahli mesyuarat.' }));
     const formErr = h('div', { 'aria-live': 'polite' });
-    const body = h('form', { class: 'form', novalidate: true }, Object.values(f).map((x) => x.wrap), formErr);
+    const body = h('form', { class: 'form', novalidate: true }, Object.values(f).map((x) => x.wrap), photoField, formErr);
     const save = button('Simpan', { kind: 'primary', type: 'submit' });
     const m = openModal({ title: editing ? 'Edit Pengguna' : 'Tambah Pengguna', body, actions: [button('Batal', { kind: 'ghost', onClick: () => m.close() }), save] });
     save.addEventListener('click', (e) => { e.preventDefault(); body.requestSubmit(); });
@@ -102,7 +117,7 @@ export function render(container, { user }) {
       try {
         const r = await busy(save, () => api('users.save', {
           email: f.email.input.value, name: f.name.input.value, position: f.position.input.value,
-          role: f.role.input.value, status: f.status.input.value
+          role: f.role.input.value, status: f.status.input.value, ...(photo !== undefined ? { photo } : {})
         }));
         m.close();
         toast(r.created ? 'Pengguna ditambah.' : 'Pengguna dikemas kini.');

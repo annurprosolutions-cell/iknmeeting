@@ -2,7 +2,7 @@
 
 Sistem mesyuarat tanpa kertas. Frontend static (vanilla HTML/CSS/JS, tiada build) di Cloudflare Pages; backend Google Apps Script; data dalam Google Sheets; fail dalam Google Drive. Rujuk dokumen 01-PRD hingga 06-IPD.
 
-**Status: Fasa 0, 1 dan 2 siap dibina.** Fasa 3 hingga 7 belum bermula (menunggu pengesahan Fasa 2).
+**Status: Fasa 0 hingga 3 siap dibina** (Fasa 3 dalam bentuk "upload sahaja", lihat bawah). Fasa 4 hingga 7 belum bermula.
 
 ## Struktur
 
@@ -10,8 +10,10 @@ Sistem mesyuarat tanpa kertas. Frontend static (vanilla HTML/CSS/JS, tiada build
 index.html, config.js, _headers, favicon.svg
 css/styles.css          token DBD, cerah/gelap, responsif, cetak
 js/                     app, api, auth, router, shell, ui, icons
-js/views/               login (S-01), dashboard (S-02), meetings (S-03), meeting-detail (S-04), meeting-form (S-05), users (S-13), placeholder
-apps-script/            Code, Auth, Users, Meetings, DriveSync, Audit, Setup, Utils, appsscript.json
+js/views/               login (S-01), dashboard (S-02), meetings (S-03), meeting-detail (S-04), meeting-form (S-05),
+                        meeting-agenda (S-06), material-viewer (S-08), users (S-13), placeholder
+js/materials-panel.js   S-07 Bahan (dalam tab Bahan S-04); js/upload.js muat naik base64 dengan kemajuan
+apps-script/            Code, Auth, Users, Meetings, Agenda, Materials, DriveSync, Audit, Setup, Utils, appsscript.json
 tests/                  ujian backend (mock Apps Script) dan smoke test frontend
 ```
 
@@ -39,7 +41,9 @@ Uji setempat: `python3 -m http.server 8080` dari folder repo, buka `http://local
 node tests/backend.test.js      # logik Apps Script dengan mock servis Google
 node tests/meetings.test.js     # Fasa 2: mesyuarat, ahli, Drive, kehadiran
 node tests/frontend.smoke.js    # perlukan Playwright; CSP sebenar dari _headers dikenakan
+node tests/materials.test.js    # Fasa 3: agenda, bahan, folder terhad
 node tests/frontend.phase2.js   # S-02 hingga S-05
+node tests/frontend.phase3.js   # borang baharu, gambar, agenda, bahan, penonton
 ```
 
 Ujian ini guna mock untuk Google (GIS dan tokeninfo) dan Apps Script. Ia **tidak** menggantikan ujian dengan akaun Google sebenar di bawah.
@@ -55,6 +59,32 @@ Ujian ini guna mock untuk Google (GIS dan tokeninfo) dan Apps Script. Ia **tidak
 - [ ] Nyahaktif Ahli: sesi Ahli itu ditolak pada panggilan seterusnya
 - [ ] Tiada ralat CSP dalam Console pelayar semasa login (laras `_headers` jika ada sumber Google disekat)
 - [ ] Tutup tab, buka semula: diminta login; biarkan sesi tamat: login senyap atau kembali ke S-01
+
+## Naik taraf ke Fasa 3 (jika Fasa 2 sudah live)
+
+1. Tampal fail baharu `Agenda.gs` dan `Materials.gs`. Ganti `Code.gs`, `Auth.gs`, `Users.gs`, `Meetings.gs`, `DriveSync.gs`, `Setup.gs`, `Utils.gs`. `appsscript.json` tidak berubah daripada Fasa 2.
+2. **Run `setupSystem()` sekali lagi.** Ia menambah lajur `photo` (tab `users`) dan `tahun` (tab `meetings`) tanpa menyentuh data sedia ada, menambah tetapan `meeting_series` (3 nama mesyuarat) dan mengemas kini senarai Jenis dokumen. Semak ringkasan: ia akan senaraikan lajur yang ditambah.
+3. Deploy > Manage deployments > pensil > Version: New version > Deploy.
+4. Push frontend dan tunggu deployment Cloudflare, kemudian hard refresh (Ctrl+Shift+R).
+
+Perubahan daripada maklum balas client (07/11/2026):
+- "Jenis mesyuarat" dibuang. "Siri" kini senarai nama mesyuarat (tetapan `meeting_series`, JSON dalam tab `settings`; Admin boleh ubah terus di Sheet sehingga S-14 dibina pada Fasa 6). Medan `Tahun` ditambah.
+- Pengerusi boleh dipilih daripada semua pengguna Aktif (tidak lagi terhad kepada role Pengerusi). Kuasa mula/tamat mesyuarat dan (kelak) sahkan minit mengikut Pengerusi mesyuarat itu, bukan role.
+- Borang Mesyuarat: lampiran Surat Jemputan dan Memo di bahagian Ahli.
+- Pengurusan Pengguna: medan Nama sebelum Emel; gambar profil pilihan.
+
+Jenis dokumen (tab Bahan): Surat Jemputan, Memo, Agenda, Kertas Cadangan, Kertas Makluman, Kertas Laporan, Bahan Bicara, Minit, Maklum Balas, Slaid, Lampiran, Lain-lain. **Bahan Bicara** hanya kelihatan kepada Pengerusi mesyuarat itu dan Admin/Setiausaha; fail disimpan di `e-Mesyuarat IKN/Terhad/<id mesyuarat>/` (di luar folder mesyuarat yang dikongsi kepada ahli).
+
+## Senarai semak pengesahan Fasa 3 (dengan akaun sebenar)
+
+- [ ] `setupSystem()` melaporkan lajur `photo` dan `tahun` ditambah; data mesyuarat lama masih kelihatan
+- [ ] Borang: tiada Jenis mesyuarat; Siri = 3 nama; Tahun auto; Pengerusi boleh sesiapa
+- [ ] Simpan mesyuarat dengan surat jemputan dan memo: fail muncul di tab Bahan dan dalam folder Drive mesyuarat
+- [ ] **Ujian had muat naik (IPD 3.4)**: cuba fail 5 MB, 20 MB dan fail HMI 16 MB (pptx). Catat mana yang berjaya. Jika gagal, letak fail dalam folder Drive dan tekan Imbas folder Drive
+- [ ] Pratonton dalam penonton: PDF, PPTX, DOCX, XLSX. Akaun Google lain yang tiada akses tidak boleh buka
+- [ ] Bahan Bicara: Setiausaha muat naik; Pengerusi nampak; Ahli tidak nampak (senarai) dan tidak boleh buka folder `Terhad` dalam Drive
+- [ ] Editor agenda: tambah, seret/susun, buang; pembentang boleh muat naik untuk item sendiri sahaja
+- [ ] Gambar profil: muat naik di S-13, kelihatan pada senarai ahli
 
 ## Naik taraf ke Fasa 2 (jika Fasa 1 sudah live)
 

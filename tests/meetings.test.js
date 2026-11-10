@@ -20,7 +20,8 @@ const A1 = login('a1@x.com'), A2 = login('a2@x.com'), OUT = login('outsider@x.co
 const root = () => state.folders.find(f => f.name === 'e-Mesyuarat IKN');
 const folderOf = (id) => state.folders.find(f => f.id === id);
 
-const base = { title: 'Mesyuarat Pengurusan Bil 1/2026', meeting_type: 'Mesyuarat Pengurusan', date: '2026-12-01', start_time: '09:00', end_time: '11:00', venue: 'Bilik Mesyuarat', online_link: 'https://meet.google.com/abc', pengerusi_email: 'chair@x.com', members: ['a1@x.com', 'a2@x.com'] };
+const SERIES = JSON.parse(run('getSettings_().meeting_series'));
+const base = { title: 'Mesyuarat Pengurusan Bil 1/2026', series: SERIES[0], date: '2026-12-01', start_time: '09:00', end_time: '11:00', venue: 'Bilik Mesyuarat', online_link: 'https://meet.google.com/abc', pengerusi_email: 'chair@x.com', members: ['a1@x.com', 'a2@x.com'] };
 let M1, F1;
 
 t('akaun Admin/Setiausaha dikongsi folder akar; Ahli/Pengerusi tidak', () => {
@@ -45,7 +46,7 @@ t('Setiausaha cipta Draf: folder Drive dicipta, pengerusi + setiausaha auto-ahli
 t('validasi input ditolak 400', () => {
   const bad = (o) => assert.strictEqual(call('meetings.create', Object.assign({}, base, o), S).error.code, 400, JSON.stringify(o));
   bad({ title: '' }); bad({ date: '2026-13-40' }); bad({ date: '01/12/2026' }); bad({ start_time: '25:00' }); bad({ end_time: '08:00' });
-  bad({ online_link: 'http://tak-selamat.com' }); bad({ meeting_type: 'Rekaan' }); bad({ pengerusi_email: 'a1@x.com' });
+  bad({ online_link: 'http://tak-selamat.com' }); bad({ series: 'Rekaan' }); bad({ series: '' }); bad({ tahun: '26' }); bad({ pengerusi_email: 'tiada@x.com' });
   bad({ members: ['tiada@x.com'] }); bad({ members: 'a1@x.com' }); bad({ title: 'x'.repeat(201) });
 });
 t('Draf tersembunyi: Ahli ahli senarai tidak nampak, get ditolak 403; Pengerusi juga', () => {
@@ -186,6 +187,22 @@ t('emel Drive gagal dikongsi dilaporkan, penerbitan tidak terhenti', () => {
 t('Ahli tidak boleh urus mesyuarat melalui action lain (403)', () => {
   ['meetings.update', 'meetings.cancel', 'meetings.publish'].forEach(a => assert.strictEqual(call(a, Object.assign({ id: M2 }, base), A1).error.code, 403, a));
   assert.strictEqual(call('members.set', { meeting_id: M2, emails: [] }, C).error.code, 403);
+});
+
+t('pindaan client: pengerusi boleh sesiapa pengguna Aktif; tiada jenis mesyuarat; tahun lalai dari tarikh', () => {
+  const r = call('meetings.create', Object.assign({}, base, { title: 'Pengerusi Ahli', pengerusi_email: 'a1@x.com', members: ['a2@x.com'], tahun: undefined }), S); assert.ok(r.ok, JSON.stringify(r));
+  const g = call('meetings.get', { id: r.data.id }, S).data;
+  assert.strictEqual(g.pengerusi_email, 'a1@x.com'); assert.strictEqual(g.tahun, '2026'); assert.strictEqual(g.meeting_type, '');
+  assert.ok(g.members.find(x => x.email === 'a1@x.com').is_chair);
+  call('meetings.publish', { id: r.data.id }, S);
+  const tok = login('a1@x.com');
+  assert.ok(call('meetings.setStatus', { id: r.data.id, status: 'Sedang Berlangsung' }, tok).ok, 'Ahli yang dilantik pengerusi boleh mula mesyuarat itu');
+  assert.strictEqual(call('meetings.setStatus', { id: M2, status: 'Sedang Berlangsung' }, tok).error.code, 403, 'tetapi bukan mesyuarat lain');
+  assert.strictEqual(call('meetings.create', Object.assign({}, base, { tahun: '2027' }), S).ok, true);
+});
+t('tahun boleh dilaraskan dan disimpan', () => {
+  const id = call('meetings.create', Object.assign({}, base, { title: 'Tahun Lain', tahun: '2025' }), S).data.id;
+  assert.strictEqual(call('meetings.get', { id }, S).data.tahun, '2025');
 });
 
 console.log(`\n${passed} ujian lulus` + (process.exitCode ? ', ADA YANG GAGAL' : ''));

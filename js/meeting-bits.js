@@ -1,5 +1,5 @@
 // Bahagian kongsi untuk skrin mesyuarat: kad mesyuarat dan pemilih ahli.
-import { h, clear, field, dayMonth, fmtTimeRange, meetingStatusBadge, attendanceBadge } from './ui.js';
+import { h, clear, field, dayMonth, fmtTimeRange, meetingStatusBadge, attendanceBadge, avatar } from './ui.js';
 import { icon } from './icons.js';
 
 /** Kad mesyuarat (DBD seksyen 6): tarikh besar di kiri, tajuk, lokasi, badge status. */
@@ -33,7 +33,7 @@ export function memberPicker(users, selected) {
     const id = 'mp' + i + Math.random().toString(36).slice(2, 5);
     const cb = h('input', { type: 'checkbox', id, checked: sel.has(u.email) });
     cb.addEventListener('change', () => { if (cb.checked) sel.add(u.email); else sel.delete(u.email); errEl.hidden = true; updateCount(); });
-    const row = h('label', { class: 'picker-row', for: id, 'data-search': (u.name + ' ' + u.email).toLowerCase() }, cb,
+    const row = h('label', { class: 'picker-row', for: id, 'data-search': (u.name + ' ' + u.email).toLowerCase() }, cb, avatar(u, 36),
       h('span', { class: 'picker-text' }, h('strong', { text: u.name }), h('span', { class: 'muted small', text: [u.position, u.email].filter(Boolean).join(' · ') })),
       h('span', { class: 'picker-tag muted small', hidden: true, text: 'Pengerusi' }));
     boxes.set(u.email, { cb, row });

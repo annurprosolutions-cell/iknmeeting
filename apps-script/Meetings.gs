@@ -55,7 +55,8 @@ function shapeMeeting_(m, byEmail, staff) {
     date: m.date, start_time: m.start_time, end_time: m.end_time, venue: m.venue, online_link: m.online_link,
     status: m.status, pengerusi_email: m.pengerusi_email, pengerusi_name: chair ? chair.name : '',
     current_agenda_id: m.current_agenda_id, notify_on_publish: m.notify_on_publish === 'TRUE',
-    created_by: m.created_by, created_at: m.created_at, updated_at: m.updated_at
+    created_by: m.created_by, created_at: m.created_at, updated_at: m.updated_at,
+    tahun: m.tahun || (m.date || '').slice(0, 4)
   };
   if (staff) o.drive_folder_id = m.drive_folder_id;
   return o;
@@ -72,14 +73,15 @@ function validDate_(s) {
 
 function parseMeetingInput_(data, selfId) {
   data = data || {};
-  var types = publicSettings_().meeting_types;
+  var seriesList = publicSettings_().meeting_series;
   var f = {};
   f.title = cleanStr_(data.title, 200, 'Tajuk', true);
-  f.meeting_type = cleanStr_(data.meeting_type, 100, 'Jenis mesyuarat', true);
-  if (types.indexOf(f.meeting_type) === -1) throw new ApiError(400, 'Jenis mesyuarat tidak sah.');
-  f.series = cleanStr_(data.series, 100, 'Siri', false);
+  f.series = cleanStr_(data.series, 200, 'Siri', true);
+  if (seriesList.length && seriesList.indexOf(f.series) === -1) throw new ApiError(400, 'Siri tidak sah.');
   f.date = cleanStr_(data.date, 10, 'Tarikh', true);
   if (!validDate_(f.date)) throw new ApiError(400, 'Tarikh tidak sah (format YYYY-MM-DD).');
+  f.tahun = cleanStr_(data.tahun, 4, 'Tahun', false) || f.date.slice(0, 4);
+  if (!/^\d{4}$/.test(f.tahun)) throw new ApiError(400, 'Tahun tidak sah (4 digit).');
   f.start_time = cleanStr_(data.start_time, 5, 'Masa mula', true);
   if (!TIME_RE_.test(f.start_time)) throw new ApiError(400, 'Masa mula tidak sah (HH:mm).');
   f.end_time = cleanStr_(data.end_time, 5, 'Masa tamat', false);
@@ -96,7 +98,7 @@ function parseMeetingInput_(data, selfId) {
   if (data.pengerusi_email) {
     f.pengerusi_email = normEmail_(data.pengerusi_email, 'Emel Pengerusi');
     var u = findUser_(f.pengerusi_email);
-    if (!u || u.status !== 'Aktif' || u.role !== 'Pengerusi') throw new ApiError(400, 'Pengerusi mesti pengguna Aktif berperanan Pengerusi.');
+    if (!u || u.status !== 'Aktif') throw new ApiError(400, 'Pengerusi mesti pengguna berdaftar yang Aktif.');
   }
 
   f.prev_meeting_id = cleanStr_(data.prev_meeting_id, 40, 'Mesyuarat lepas', false);
@@ -199,9 +201,10 @@ function apiMeetingsGet_(session, data) {
   var byEmail = usersByEmail_();
   var o = shapeMeeting_(m, byEmail, staff);
   var memberRows = getMembers_(m.id);
+  var photos = getPhotos_();
   o.members = memberRows.map(function (r) {
     var u = byEmail[r.email] || {};
-    return { email: r.email, name: u.name || r.email, position: u.position || '', attendance: r.attendance, attendance_at: r.attendance_at, is_chair: r.email === m.pengerusi_email };
+    return { email: r.email, name: u.name || r.email, position: u.position || '', photo: photos[r.email] || '', attendance: r.attendance, attendance_at: r.attendance_at, is_chair: r.email === m.pengerusi_email };
   }).sort(function (a, b) { return (b.is_chair ? 1 : 0) - (a.is_chair ? 1 : 0) || a.name.localeCompare(b.name); });
   o.my_attendance = (memberRows.filter(function (r) { return r.email === session.email; })[0] || {}).attendance || '';
   o.agenda = readTable_('agenda_items').rows.filter(function (r) { return r.meeting_id === m.id; })
@@ -211,6 +214,7 @@ function apiMeetingsGet_(session, data) {
       return { id: r.id, seq: Number(r.seq), title: r.title, description: r.description, category: r.category,
         presenter_email: r.presenter_email, presenter_name: p ? p.name : '', duration_min: r.duration_min ? Number(r.duration_min) : null, status: r.status };
     });
+  o.materials = listMaterialsFor_(session, m, byEmail);
   if (m.prev_meeting_id) {
     var prev = readTable_('meetings').rows.filter(function (x) { return x.id === m.prev_meeting_id; })[0];
     if (prev) o.prev_meeting = { id: prev.id, title: prev.title, date: prev.date };
@@ -227,7 +231,7 @@ function apiMeetingsCreate_(session, data) {
   withLock_(function () {
     var now = nowIso_();
     appendObject_('meetings', {
-      id: id, title: f.title, meeting_type: f.meeting_type, series: f.series, prev_meeting_id: f.prev_meeting_id,
+      id: id, title: f.title, meeting_type: '', series: f.series, tahun: f.tahun, prev_meeting_id: f.prev_meeting_id,
       date: f.date, start_time: f.start_time, end_time: f.end_time, venue: f.venue, online_link: f.online_link,
       status: 'Draf', pengerusi_email: f.pengerusi_email, current_agenda_id: '', drive_folder_id: folderId,
       notify_on_publish: f.notify_on_publish, created_by: session.email, created_at: now, updated_at: now
@@ -253,7 +257,7 @@ function apiMeetingsUpdate_(session, data) {
   withLock_(function () {
     var cur = getMeetingRow_(old.id); // baca semula dalam lock
     updateObject_('meetings', cur._row, {
-      title: f.title, meeting_type: f.meeting_type, series: f.series, prev_meeting_id: f.prev_meeting_id,
+      title: f.title, series: f.series, tahun: f.tahun, prev_meeting_id: f.prev_meeting_id,
       date: f.date, start_time: f.start_time, end_time: f.end_time, venue: f.venue, online_link: f.online_link,
       pengerusi_email: f.pengerusi_email, notify_on_publish: f.notify_on_publish, updated_at: nowIso_()
     });
@@ -263,6 +267,7 @@ function apiMeetingsUpdate_(session, data) {
     if (f.prev_meeting_id && f.prev_meeting_id !== old.prev_meeting_id) ensureContinuationAgenda_(old.id, session.email);
     audit_(session.email, 'meeting.update', 'meetings', old.id, f.title.slice(0, 100));
   });
+  if (f.pengerusi_email !== old.pengerusi_email) moveRestrictedAccess_(meeting, old.pengerusi_email, f.pengerusi_email);
   if (old.date !== f.date || old.title !== f.title) renameMeetingFolder_(old.drive_folder_id, old.id, f.date, f.title);
   var failed = diff ? applyDriveDiff_(meeting, diff) : [];
   return { id: old.id, driveFailures: failed };
@@ -300,6 +305,7 @@ function apiMeetingsPublish_(session, data) {
     updateObject_('meetings', cur._row, { status: 'Dijadualkan', updated_at: nowIso_() });
     audit_(session.email, 'meeting.publish', 'meetings', m.id, members.length + ' ahli' + (failed.length ? ', ' + failed.length + ' gagal dikongsi' : ''));
   });
+  moveRestrictedAccess_(m, '', m.pengerusi_email);
   if (m.notify_on_publish === 'TRUE' && typeof globalThis.notifyInvite_ === 'function') {
     try { globalThis.notifyInvite_(m.id); } catch (e) { Logger.log('notifyInvite_ gagal: ' + e); }
   }
@@ -317,6 +323,7 @@ function apiMeetingsCancel_(session, data) {
     audit_(session.email, 'meeting.cancel', 'meetings', m.id, '');
   });
   members.forEach(function (r) { driveUnshare_(m.drive_folder_id, r.email); });
+  moveRestrictedAccess_(m, m.pengerusi_email, '');
   return { id: m.id, status: 'Dibatalkan' };
 }
 

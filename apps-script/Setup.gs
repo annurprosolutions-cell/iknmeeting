@@ -11,11 +11,11 @@ var BOOL_ = ['TRUE', 'FALSE'];
 
 var SCHEMA = {
   users: {
-    headers: ['email', 'name', 'position', 'role', 'status', 'created_at', 'created_by', 'last_login'],
+    headers: ['email', 'name', 'position', 'role', 'status', 'created_at', 'created_by', 'last_login', 'photo'],
     enums: { role: ['Admin', 'Setiausaha', 'Pengerusi', 'Ahli'], status: ['Aktif', 'Tidak Aktif'] }
   },
   meetings: {
-    headers: ['id', 'title', 'meeting_type', 'series', 'prev_meeting_id', 'date', 'start_time', 'end_time', 'venue', 'online_link', 'status', 'pengerusi_email', 'current_agenda_id', 'drive_folder_id', 'notify_on_publish', 'created_by', 'created_at', 'updated_at'],
+    headers: ['id', 'title', 'meeting_type', 'series', 'prev_meeting_id', 'date', 'start_time', 'end_time', 'venue', 'online_link', 'status', 'pengerusi_email', 'current_agenda_id', 'drive_folder_id', 'notify_on_publish', 'created_by', 'created_at', 'updated_at', 'tahun'],
     enums: { status: ['Draf', 'Dijadualkan', 'Sedang Berlangsung', 'Selesai', 'Dibatalkan'], notify_on_publish: BOOL_ }
   },
   meeting_members: {
@@ -28,7 +28,7 @@ var SCHEMA = {
   },
   materials: {
     headers: ['id', 'meeting_id', 'agenda_id', 'type', 'title', 'drive_file_id', 'file_name', 'mime_type', 'size_bytes', 'version', 'status', 'replaces_id', 'uploaded_by', 'uploaded_at'],
-    enums: { type: ['Kertas', 'Slide', 'Lampiran', 'Lain-lain'], status: ['Aktif', 'Digantikan', 'Diarkib'] }
+    enums: { type: ['Surat Jemputan', 'Memo', 'Agenda', 'Kertas Cadangan', 'Kertas Makluman', 'Kertas Laporan', 'Bahan Bicara', 'Minit', 'Maklum Balas', 'Slaid', 'Lampiran', 'Lain-lain'], status: ['Aktif', 'Digantikan', 'Diarkib'] }
   },
   minutes: {
     headers: ['id', 'meeting_id', 'version', 'status', 'content_md', 'final_file_id', 'is_current', 'prepared_by', 'prepared_at', 'submitted_at', 'approved_by', 'approved_at'],
@@ -60,7 +60,8 @@ var SETTINGS_SEED = [
   ['app_name', 'e-Mesyuarat IKN', 'Nama paparan'],
   ['root_folder_id', '', 'Folder akar Drive (diisi setupSystem)'],
   ['backup_folder_id', '', 'Folder backup (diisi setupSystem)'],
-  ['meeting_types', '["Mesyuarat Pengurusan","Mesyuarat Jawatankuasa","Lain-lain"]', 'Senarai jenis mesyuarat (JSON)'],
+  ['meeting_types', '["Mesyuarat Pengurusan","Mesyuarat Jawatankuasa","Lain-lain"]', 'Tidak digunakan lagi (diganti meeting_series)'],
+  ['meeting_series', '["Mesyuarat Jawatankuasa Hospital Mesra Ibadah Institut Kanser Negara","Mesyuarat Jawatankuasa Credentialing & Privileging Pengurusan Ibadah Pesakit Institut Kanser Negara","Mesyuarat Pengurusan Kualiti Jawatankuasa Hospital Mesra Ibadah Institut Kanser Negara"]', 'Senarai siri / nama mesyuarat (JSON)'],
   ['reminder_hours_before', '24', 'Peringatan sebelum mesyuarat (jam)'],
   ['digest_enabled', 'TRUE', 'Digest emel bahan baharu'],
   ['max_upload_mb', '20', 'Had muat naik melalui app (laras selepas ujian Fasa 3)'],
@@ -100,9 +101,16 @@ function setupSystem() {
     }
     ensureColumns_(sh, def.headers.length);
     var cur = sh.getRange(1, 1, 1, def.headers.length).getValues()[0].map(toStr_);
-    var blank = cur.every(function (c) { return c === ''; });
-    if (blank) {
+    var k = 0;
+    while (k < cur.length && cur[k] !== '') k++;
+    var tailBlank = cur.slice(k).every(function (c) { return c === ''; });
+    var prefixOk = cur.slice(0, k).join('|') === def.headers.slice(0, k).join('|');
+    if (k === 0) {
       sh.getRange(1, 1, 1, def.headers.length).setValues([def.headers]);
+    } else if (k < def.headers.length && tailBlank && prefixOk) {
+      // Migrasi: tambah lajur baharu di hujung (data sedia ada tidak disentuh)
+      sh.getRange(1, k + 1, 1, def.headers.length - k).setValues([def.headers.slice(k)]);
+      log.notes.push('Tab "' + name + '": lajur ditambah: ' + def.headers.slice(k).join(', '));
     } else if (cur.join('|') !== def.headers.join('|')) {
       log.notes.push('AMARAN: header tab "' + name + '" berbeza daripada BSD. Tidak diubah.');
     }

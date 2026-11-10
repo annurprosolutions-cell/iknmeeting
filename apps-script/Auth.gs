@@ -17,13 +17,25 @@ function getUsers_() {
   return list;
 }
 
-function invalidateUsers_() { cacheRemove_('users_v1'); }
+function invalidateUsers_() { cacheRemove_('users_v1'); invalidatePhotos_(); }
 
 function stripRow_(o) {
   var c = {};
-  Object.keys(o).forEach(function (k) { if (k !== '_row') c[k] = o[k]; });
+  Object.keys(o).forEach(function (k) { if (k !== '_row' && k !== 'photo') c[k] = o[k]; });
   return c;
 }
+
+/** Gambar profil (data URL kecil) disimpan berasingan supaya cache pengguna kekal < 100KB. */
+function getPhotos_() {
+  var c = cacheGet_('photos_v1');
+  if (c) return c;
+  var map = {};
+  readTable_('users').rows.forEach(function (r) { if (r.photo) map[r.email] = r.photo; });
+  cachePut_('photos_v1', map, 300);
+  return map;
+}
+
+function invalidatePhotos_() { cacheRemove_('photos_v1'); }
 
 function findUser_(email) {
   var e = String(email || '').trim().toLowerCase();
@@ -33,7 +45,7 @@ function findUser_(email) {
 }
 
 function publicUser_(u) {
-  return { email: u.email, name: u.name, position: u.position, role: u.role };
+  return { email: u.email, name: u.name, position: u.position, role: u.role, photo: getPhotos_()[u.email] || '' };
 }
 
 // ---------- Had cubaan ----------

@@ -1,10 +1,11 @@
-// S-05 Borang Mesyuarat: cipta / edit, pilih ahli, sambung daripada mesyuarat lepas, terbit.
+// S-05 Borang Mesyuarat: cipta / edit, pilih ahli, lampirkan surat jemputan dan memo, sambung daripada mesyuarat lepas, terbit.
 import { h, clear, button, busy, field, toast, confirmDialog, errorBanner, skeletonRows, fmtDate } from '../ui.js';
 import { icon } from '../icons.js';
 import { api } from '../api.js';
 import { getSettings } from '../auth.js';
 import { memberPicker } from '../meeting-bits.js';
 import { navigate } from '../router.js';
+import { sendFile, checkFile, FILE_ACCEPT } from '../upload.js';
 
 export function render(container, { user, params }) {
   const editing = Boolean(params.id);
@@ -22,32 +23,50 @@ export function render(container, { user, params }) {
   }
 
   function build(users, meetings, cur) {
-    const types = getSettings().meeting_types || [];
+    const seriesList = getSettings().meeting_series || [];
     const wasPublished = Boolean(cur && cur.status !== 'Draf');
     const f = {
-      title: field({ label: 'Tajuk mesyuarat', value: cur ? cur.title : '', required: true, maxlength: 200 }),
-      type: field({ label: 'Jenis mesyuarat', value: cur ? cur.meeting_type : (types[0] || ''), options: types, required: true }),
-      series: field({ label: 'Siri / jawatankuasa', value: cur ? cur.series : '', maxlength: 100, hint: 'Pilihan. Digunakan untuk mengumpulkan mesyuarat dalam arkib.' }),
+      title: field({ label: 'Tajuk mesyuarat', value: cur ? cur.title : '', required: true, maxlength: 200, hint: 'Contoh: Mesyuarat Jawatankuasa HMI IKN Bil.1/2026' }),
+      series: seriesList.length
+        ? field({ label: 'Siri', value: cur ? cur.series : '', required: true, options: [{ value: '', label: '- Pilih siri -' }, ...seriesList] })
+        : field({ label: 'Siri', value: cur ? cur.series : '', required: true, maxlength: 200 }),
+      tahun: field({ label: 'Tahun', value: cur ? cur.tahun : '', required: true, maxlength: 4, hint: 'Diisi automatik daripada tarikh.' }),
       date: field({ label: 'Tarikh', type: 'date', value: cur ? cur.date : '', required: true }),
       start: field({ label: 'Masa mula', type: 'time', value: cur ? cur.start_time : '09:00', required: true }),
       end: field({ label: 'Masa tamat', type: 'time', value: cur ? cur.end_time : '' }),
       venue: field({ label: 'Lokasi', value: cur ? cur.venue : '', maxlength: 200 }),
       link: field({ label: 'Pautan mesyuarat online', type: 'url', value: cur ? cur.online_link : '', maxlength: 500, hint: 'Pilihan. Mesti bermula dengan https://', placeholder: 'https://' }),
-      chair: field({ label: 'Pengerusi', value: cur ? cur.pengerusi_email : '', required: true, hint: 'Mesti dipilih sebelum mesyuarat diterbitkan.',
-        options: [{ value: '', label: '- Pilih Pengerusi -' }, ...users.filter((x) => x.role === 'Pengerusi').map((x) => ({ value: x.email, label: x.name + (x.position ? ' (' + x.position + ')' : '') }))] }),
+      chair: field({ label: 'Pengerusi', value: cur ? cur.pengerusi_email : '', required: true, hint: 'Mana-mana pengguna berdaftar boleh dipilih. Mesti dipilih sebelum mesyuarat diterbitkan.',
+        options: [{ value: '', label: '- Pilih Pengerusi -' }, ...users.map((x) => ({ value: x.email, label: x.name + (x.position ? ' (' + x.position + ')' : '') }))] }),
       prev: field({ label: 'Sambung daripada mesyuarat lepas', value: cur ? cur.prev_meeting_id : '',
         hint: 'Pilihan. Menambah item agenda "Pengesahan Minit Mesyuarat Lepas" dan "Perkara Berbangkit".',
         options: [{ value: '', label: 'Tiada' }, ...meetings.filter((x) => (!cur || x.id !== cur.id) && x.status !== 'Dibatalkan').sort((a, b) => b.date.localeCompare(a.date)).map((x) => ({ value: x.id, label: `${fmtDate(x.date)} - ${x.title}` }))] })
     };
-    const seriesList = h('datalist', { id: 'series-list' }, [...new Set(meetings.map((x) => x.series).filter(Boolean))].map((s) => h('option', { value: s })));
-    f.series.input.setAttribute('list', 'series-list');
+    // Tahun mengikut tarikh selagi pengguna tidak menyuntingnya sendiri
+    let tahunManual = Boolean(cur && cur.tahun && cur.tahun !== cur.date.slice(0, 4));
+    f.tahun.input.addEventListener('input', () => { tahunManual = true; });
+    f.date.input.addEventListener('change', () => { if (!tahunManual && f.date.input.value) f.tahun.input.value = f.date.input.value.slice(0, 4); });
 
     const picker = memberPicker(users, cur ? cur.members.map((x) => x.email) : []);
     picker.setLocked(f.chair.input.value);
     f.chair.input.addEventListener('change', () => { picker.setLocked(f.chair.input.value); picker.clearError(); });
 
+    // Lampiran jemputan: dimuat naik selepas mesyuarat disimpan
+    const attach = {
+      surat: field({ label: 'Surat jemputan (ahli luar IKN)', hint: 'Pilihan. PDF atau Word.' }),
+      memo: field({ label: 'Memo (ahli dalam IKN)', hint: 'Pilihan. PDF atau Word.' })
+    };
+    const files = {};
+    Object.entries(attach).forEach(([k, fld]) => {
+      const inp = h('input', { type: 'file', class: 'file-input', accept: FILE_ACCEPT, id: 'att-' + k });
+      fld.input.replaceWith(inp); fld.input = inp;
+      inp.addEventListener('change', () => { fld.clearError(); const fl = inp.files[0]; files[k] = fl || null; if (fl) { const bad = checkFile(fl); if (bad) { fld.error(bad); files[k] = null; inp.value = ''; } } });
+      fld.wrap.querySelector('label').setAttribute('for', 'att-' + k);
+    });
+
     const notify = h('input', { type: 'checkbox', id: 'notify', checked: cur ? cur.notify_on_publish : true });
     const formErr = h('div', { 'aria-live': 'polite' });
+    const status = h('p', { class: 'muted small', 'aria-live': 'polite' });
 
     const saveBtn = button(wasPublished ? 'Simpan perubahan' : 'Simpan Draf', { kind: wasPublished ? 'primary' : 'secondary', type: 'submit' });
     const pubBtn = wasPublished ? null : button('Simpan & Terbitkan', { kind: 'primary', iconName: 'check', onClick: () => submit(true) });
@@ -55,15 +74,19 @@ export function render(container, { user, params }) {
 
     const form = h('form', { class: 'form form-wide', novalidate: true },
       h('div', { class: 'card section' }, h('h2', { text: 'Maklumat mesyuarat' }),
-        f.title.wrap, h('div', { class: 'grid-form' }, f.type.wrap, f.series.wrap, seriesList),
+        f.title.wrap, h('div', { class: 'grid-form' }, f.series.wrap, f.tahun.wrap),
         h('div', { class: 'grid-form grid-3' }, f.date.wrap, f.start.wrap, f.end.wrap),
         f.venue.wrap, f.link.wrap, f.chair.wrap, f.prev.wrap),
       h('div', { class: 'card section' }, h('h2', { text: 'Ahli mesyuarat' }),
         h('p', { class: 'muted small', text: wasPublished ? 'Ahli yang ditambah akan dikongsi akses folder; ahli yang dibuang kehilangan akses fail dan mesyuarat.' : 'Ahli belum nampak mesyuarat dan fail belum dikongsi sehingga diterbitkan.' }),
-        picker.el),
+        picker.el,
+        h('h3', { class: 'subhead', text: 'Surat jemputan dan memo' }),
+        h('p', { class: 'muted small', text: editing ? 'Fail baharu ditambah pada tab Bahan. Surat/memo sedia ada diurus di tab Bahan.' : 'Dilampirkan kepada mesyuarat ini dan boleh dibuka oleh semua ahli selepas diterbitkan.' }),
+        h('div', { class: 'grid-form' }, attach.surat.wrap, attach.memo.wrap),
+        h('p', { class: 'warn-note' }, icon('alert', 18), h('span', { text: 'Jangan muat naik dokumen berklasifikasi Rahsia atau Rahsia Besar.' }))),
       h('div', { class: 'card section' }, h('h2', { text: 'Pemberitahuan' }),
         h('div', { class: 'check-row' }, notify, h('label', { for: 'notify', text: 'Hantar emel jemputan kepada ahli semasa diterbitkan' }))),
-      formErr,
+      formErr, status,
       h('div', { class: 'form-actions' }, cancelBtn, saveBtn, pubBtn));
 
     clear(host).append(
@@ -77,8 +100,9 @@ export function render(container, { user, params }) {
       let first = null;
       const bad = (fld, msg) => { fld.error(msg); first = first || fld.input; };
       if (!f.title.input.value.trim()) bad(f.title, 'Tajuk wajib diisi.');
-      if (!f.type.input.value) bad(f.type, 'Pilih jenis mesyuarat.');
+      if (!f.series.input.value) bad(f.series, 'Pilih siri mesyuarat.');
       if (!f.date.input.value) bad(f.date, 'Tarikh wajib diisi.');
+      if (!/^\d{4}$/.test(f.tahun.input.value.trim())) bad(f.tahun, 'Tahun mesti 4 digit, contoh 2026.');
       if (!f.start.input.value) bad(f.start, 'Masa mula wajib diisi.');
       if (f.end.input.value && f.start.input.value && f.end.input.value <= f.start.input.value) bad(f.end, 'Masa tamat mesti selepas masa mula.');
       const link = f.link.input.value.trim();
@@ -93,14 +117,14 @@ export function render(container, { user, params }) {
     }
 
     async function submit(publish) {
-      clear(formErr);
+      clear(formErr); status.textContent = '';
       if (!validate(publish)) return;
       if (publish) {
         const ok = await confirmDialog({ title: 'Terbitkan mesyuarat', confirmLabel: 'Simpan & Terbitkan', message: 'Ahli akan dapat melihat mesyuarat dan dikongsi akses folder fail.' + (notify.checked ? ' Emel jemputan akan dihantar.' : '') });
         if (!ok) return;
       }
       const payload = {
-        title: f.title.input.value, meeting_type: f.type.input.value, series: f.series.input.value, date: f.date.input.value,
+        title: f.title.input.value, series: f.series.input.value, tahun: f.tahun.input.value.trim(), date: f.date.input.value,
         start_time: f.start.input.value, end_time: f.end.input.value, venue: f.venue.input.value, online_link: f.link.input.value,
         pengerusi_email: f.chair.input.value, prev_meeting_id: f.prev.input.value, notify_on_publish: notify.checked,
         members: picker.getSelected()
@@ -113,6 +137,20 @@ export function render(container, { user, params }) {
           else id = (await api('meetings.create', payload)).id;
         });
       } catch (e) { formErr.append(errorBanner(e.message)); return; }
+
+      // Lampiran: gagal satu tidak membatalkan mesyuarat yang sudah disimpan
+      const failed = [];
+      await busy(btn, async () => {
+        for (const [k, type] of [['surat', 'Surat Jemputan'], ['memo', 'Memo']]) {
+          if (!files[k]) continue;
+          status.textContent = `Memuat naik ${type.toLowerCase()}…`;
+          try { await sendFile('materials.upload', { meeting_id: id, type }, files[k], (p) => { status.textContent = `Memuat naik ${type.toLowerCase()}… ${Math.round(p * 100)}%`; }); }
+          catch (e) { failed.push(`${type}: ${e.message}`); }
+        }
+      });
+      status.textContent = '';
+      failed.forEach((m) => toast(m, 'error'));
+
       if (publish) {
         try {
           const r = await busy(btn, () => api('meetings.publish', { id }));

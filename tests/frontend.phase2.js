@@ -20,7 +20,7 @@ const db = { meetings: [], members: {}, agenda: {}, seq: 0 };
 const sessions = {};
 function handle(b) {
   const { action, token, data } = b; const ok = (d) => ({ ok: true, data: d }), err = (c, m) => ({ ok: false, error: { code: c, message: m } });
-  const settings = { app_name: 'e-Mesyuarat IKN', meeting_types: ['Mesyuarat Pengurusan', 'Mesyuarat Jawatankuasa'] };
+  const settings = { app_name: 'e-Mesyuarat IKN', meeting_types: [], meeting_series: ['Mesyuarat Jawatankuasa HMI IKN', 'Mesyuarat Pengurusan Kualiti HMI IKN'], max_upload_mb: 20 };
   if (action === 'ping') return ok({ pong: true });
   const pub = (u) => ({ email: u.email, name: u.name, position: u.position, role: u.role });
   if (action === 'auth.login') {
@@ -37,14 +37,14 @@ function handle(b) {
   if (action === 'meetings.get') {
     const m = db.meetings.find((x) => x.id === data.id); if (!m) return err(404, 'Mesyuarat tidak dijumpai.'); if (!access(m)) return err(403, 'Anda tidak dijemput ke mesyuarat ini.');
     const prev = db.meetings.find((x) => x.id === m.prev_meeting_id);
-    return ok({ ...shape(m), members: db.members[m.id].map((r) => { const u = U.find((x) => x.email === r.email); return { ...r, name: u.name, position: u.position, is_chair: r.email === m.pengerusi_email }; }), agenda: db.agenda[m.id] || [], prev_meeting: prev ? { id: prev.id, title: prev.title, date: prev.date } : undefined });
+    return ok({ ...shape(m), materials: [], members: db.members[m.id].map((r) => { const u = U.find((x) => x.email === r.email); return { ...r, name: u.name, position: u.position, is_chair: r.email === m.pengerusi_email }; }), agenda: db.agenda[m.id] || [], prev_meeting: prev ? { id: prev.id, title: prev.title, date: prev.date } : undefined });
   }
   if (action === 'meetings.create' || action === 'meetings.update') {
     if (!staff) return err(403, 'Dilarang');
     if (!data.title) return err(400, 'Tajuk wajib diisi.');
     let m = db.meetings.find((x) => x.id === data.id);
     if (!m) { m = { id: 'MTG-' + (++db.seq), status: 'Draf' }; db.meetings.push(m); db.agenda[m.id] = []; db.members[m.id] = []; }
-    Object.assign(m, { title: data.title, meeting_type: data.meeting_type, series: data.series, prev_meeting_id: data.prev_meeting_id, date: data.date, start_time: data.start_time, end_time: data.end_time, venue: data.venue, online_link: data.online_link, pengerusi_email: data.pengerusi_email, notify_on_publish: data.notify_on_publish });
+    Object.assign(m, { title: data.title, series: data.series, tahun: data.tahun, prev_meeting_id: data.prev_meeting_id, date: data.date, start_time: data.start_time, end_time: data.end_time, venue: data.venue, online_link: data.online_link, pengerusi_email: data.pengerusi_email, notify_on_publish: data.notify_on_publish });
     const emails = new Set([...data.members, data.pengerusi_email, me.email].filter(Boolean));
     db.members[m.id] = [...emails].map((e) => (db.members[m.id].find((r) => r.email === e) || { email: e, attendance: 'Belum Jawab', attendance_at: '' }));
     if (data.prev_meeting_id && !db.agenda[m.id].length) db.agenda[m.id] = [{ id: 'a1', seq: 1, title: 'Pengesahan Minit Mesyuarat Lepas', category: 'Pengesahan', status: 'Belum' }, { id: 'a2', seq: 2, title: 'Perkara Berbangkit', category: 'Makluman', status: 'Belum' }];
@@ -83,16 +83,16 @@ function handle(b) {
   await page.waitForSelector('text=Tiada mesyuarat akan datang'); ok('S-02 kosong: "Tiada mesyuarat akan datang"');
   await page.click('.sidenav a[data-path="/meetings/new"]'); await page.waitForSelector('#main h1:has-text("Mesyuarat Baharu")');
   await page.click('button:has-text("Simpan & Terbitkan")');
-  assert.ok(await page.locator('.field-error:visible').count() >= 2); ok('S-05: validasi (tajuk, tarikh, ...) ditunjuk inline');
+  assert.ok(await page.locator('.field-error:visible').count() >= 2); ok('S-05: validasi (tajuk, siri, tarikh, ...) ditunjuk inline');
   await page.fill('input[maxlength="200"]', 'Mesyuarat Pengurusan Bil 1/2026');
   await page.fill('input[type=date]', '2026-12-01');
   await page.fill('input[type=url]', 'http://tak-selamat');
   await page.click('button:has-text("Simpan Draf")');
   assert.ok(await page.locator('.field-error:visible:has-text("https://")').count() === 1); ok('pautan http ditolak di klien');
   await page.fill('input[type=url]', 'https://meet.google.com/abc');
+  await page.selectOption('label:has-text("Siri") + select', { index: 1 });
   await page.click('button:has-text("Simpan & Terbitkan")');
   assert.ok(await page.locator('.field-error:visible:has-text("Pilih Pengerusi")').count() === 1); ok('terbit tanpa Pengerusi ditolak di klien');
-  await page.selectOption('select >> nth=1', { index: 0 }).catch(() => {});
   await page.selectOption('label:has-text("Pengerusi") + select', 'chair@x.com');
   assert.ok(await page.locator('.picker-row:has-text("Dr Pengerusi") input').isDisabled()); ok('Pengerusi dikunci dalam pemilih ahli');
   await page.click('button:has-text("Simpan & Terbitkan")');
@@ -113,7 +113,7 @@ function handle(b) {
   await page.waitForSelector('.badge:has-text("Dijadualkan")'); ok('terbit dari S-04 -> Dijadualkan');
   // mesyuarat kedua bersambung
   await page.click('.sidenav a[data-path="/meetings/new"]');
-  await page.fill('input[maxlength="200"]', 'Bil 2/2026'); await page.fill('input[type=date]', '2027-01-05');
+  await page.fill('input[maxlength="200"]', 'Bil 2/2026'); await page.fill('input[type=date]', '2027-01-05'); await page.selectOption('label:has-text("Siri") + select', { index: 1 });
   await page.selectOption('label:has-text("Sambung daripada") + select', { index: 1 });
   await page.click('button:has-text("Simpan Draf")'); await page.waitForSelector('h1:has-text("Bil 2/2026")');
   assert.ok((await page.textContent('#tabpanel')).includes('Pengesahan Minit Mesyuarat Lepas')); assert.ok((await page.textContent('.meta')).includes('Bersambung daripada'));

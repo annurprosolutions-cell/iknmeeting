@@ -18,12 +18,13 @@ function apiMeGet_(session) {
 function apiUsersList_(session) {
   requireRole_(session, ['Admin', 'Setiausaha', 'Pengerusi']);
   if (session.role === 'Admin') {
-    var rows = readTable_('users').rows.map(stripRow_);
+    var rows = readTable_('users').rows.map(function (r) { var o = stripRow_(r); o.photo = r.photo || ''; return o; });
     rows.sort(function (a, b) { return a.name.localeCompare(b.name); });
     return { users: rows };
   }
+  var photos = getPhotos_();
   var list = getUsers_().filter(function (u) { return u.status === 'Aktif'; }).map(function (u) {
-    var o = { email: u.email, name: u.name, position: u.position };
+    var o = { email: u.email, name: u.name, position: u.position, photo: photos[u.email] || '' };
     if (session.role === 'Setiausaha') o.role = u.role;
     return o;
   });
@@ -48,6 +49,13 @@ function apiUsersSave_(session, data) {
   var position = cleanStr_(data.position, 120, 'Jawatan', false);
   var role = cleanEnum_(data.role || 'Ahli', ROLES_, 'Role');
   var status = cleanEnum_(data.status || 'Aktif', USER_STATUS_, 'Status');
+  var photo;
+  if (data.photo !== undefined) {
+    photo = String(data.photo || '');
+    if (photo && (!/^data:image\/jpeg;base64,[A-Za-z0-9+\/=]+$/.test(photo) || photo.length > 30000)) {
+      throw new ApiError(400, 'Gambar tidak sah atau terlalu besar.');
+    }
+  }
 
   var driveChanged = false;
   var result = withLock_(function () {
@@ -62,7 +70,9 @@ function apiUsersSave_(session, data) {
     }
 
     if (existing) {
-      updateObject_('users', existing._row, { name: name, position: position, role: role, status: status });
+      var patch = { name: name, position: position, role: role, status: status };
+      if (photo !== undefined) patch.photo = photo;
+      updateObject_('users', existing._row, patch);
       var action = (existing.status === 'Aktif' && status === 'Tidak Aktif') ? 'user.deactivate' : 'user.update';
       var detail = action === 'user.deactivate' ? 'Dinyahaktifkan' :
         (existing.role !== role ? 'Role ' + existing.role + ' -> ' + role : 'Kemas kini');
@@ -73,7 +83,7 @@ function apiUsersSave_(session, data) {
     }
     appendObject_('users', {
       email: email, name: name, position: position, role: role, status: status,
-      created_at: nowIso_(), created_by: session.email, last_login: ''
+      created_at: nowIso_(), created_by: session.email, last_login: '', photo: photo || ''
     });
     invalidateUsers_();
     audit_(session.email, 'user.create', 'users', email, 'Role ' + role);

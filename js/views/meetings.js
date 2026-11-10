@@ -12,11 +12,13 @@ const PAGE = 20;
 
 export function render(container, { user }) {
   const staff = user.role === 'Admin' || user.role === 'Setiausaha';
-  let all = [], tab = 'upcoming', q = '', series = '', page = 1;
+  let all = [], tab = 'upcoming', q = '', series = '', tahun = '', page = 1;
   const listHost = h('div');
 
   const search = h('input', { class: 'input', type: 'search', placeholder: 'Cari tajuk mesyuarat', 'aria-label': 'Cari tajuk mesyuarat', autocomplete: 'off' });
   const seriesSel = h('select', { class: 'input', 'aria-label': 'Tapis siri' }, h('option', { value: '', text: 'Semua siri' }));
+  const tahunSel = h('select', { class: 'input', 'aria-label': 'Tapis tahun' }, h('option', { value: '', text: 'Semua tahun' }));
+  tahunSel.addEventListener('change', () => { tahun = tahunSel.value; page = 1; draw(); });
   search.addEventListener('input', () => { q = search.value.trim().toLowerCase(); page = 1; draw(); });
   seriesSel.addEventListener('change', () => { series = seriesSel.value; page = 1; draw(); });
 
@@ -31,7 +33,7 @@ export function render(container, { user }) {
   container.append(
     h('div', { class: 'page-head' }, h('h1', { text: 'Mesyuarat' }),
       staff ? h('div', { class: 'page-actions' }, button('Mesyuarat Baharu', { kind: 'primary', iconName: 'plus', onClick: () => { location.hash = '#/meetings/new'; } })) : null),
-    tabBar, h('div', { class: 'toolbar' }, search, seriesSel), listHost);
+    tabBar, h('div', { class: 'toolbar' }, search, seriesSel, tahunSel), listHost);
   drawTabs();
 
   async function load() {
@@ -39,13 +41,14 @@ export function render(container, { user }) {
     try {
       all = (await api('meetings.list')).meetings;
       [...new Set(all.map((m) => m.series).filter(Boolean))].sort().forEach((s) => seriesSel.append(h('option', { value: s, text: s })));
+      [...new Set(all.map((m) => m.tahun).filter(Boolean))].sort().reverse().forEach((y) => tahunSel.append(h('option', { value: y, text: y })));
       draw();
     } catch (e) { clear(listHost).append(errorBanner('Tidak dapat sambung ke server. ' + e.message, load)); }
   }
 
   function draw() {
     const def = TABS.find((t) => t.id === tab);
-    const rows = all.filter((m) => def.test(m) && (!q || m.title.toLowerCase().includes(q)) && (!series || m.series === series))
+    const rows = all.filter((m) => def.test(m) && (!q || m.title.toLowerCase().includes(q)) && (!series || m.series === series) && (!tahun || m.tahun === tahun))
       .sort((a, b) => { const c = (a.date + a.start_time).localeCompare(b.date + b.start_time); return def.asc ? c : -c; });
     clear(listHost);
     if (!rows.length) { listHost.append(emptyState('Tiada mesyuarat dijumpai', 'Cuba ubah tab, carian atau penapis.')); return; }

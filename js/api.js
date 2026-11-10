@@ -49,3 +49,31 @@ export async function api(action, data = {}, opts = {}) {
   }
   throw new ApiError(err.code, err.message);
 }
+
+/**
+ * Hantar action dengan kemajuan muat naik (XHR kerana fetch tiada upload progress).
+ * Sama seperti api(): text/plain tanpa preflight; pada 401 cuba pulihkan sesi sekali.
+ */
+export function apiUpload(action, data, onProgress, retried = false) {
+  return new Promise((resolve, reject) => {
+    if (!API_URL) return reject(new ApiError(0, 'API_URL belum diisi dalam config.js.'));
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', API_URL);
+    xhr.setRequestHeader('Content-Type', 'text/plain;charset=utf-8');
+    xhr.timeout = 5 * 60 * 1000;
+    if (onProgress && xhr.upload) xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded / e.total); };
+    xhr.onerror = () => reject(new ApiError(0, 'Tidak dapat sambung ke server. Semak sambungan internet anda.'));
+    xhr.ontimeout = () => reject(new ApiError(0, 'Muat naik mengambil masa terlalu lama. Cuba fail yang lebih kecil atau guna folder Drive.'));
+    xhr.onload = async () => {
+      let body;
+      try { body = JSON.parse(xhr.responseText); } catch (e) { return reject(new ApiError(0, 'Respons server tidak sah. Fail mungkin terlalu besar untuk dimuat naik; guna folder Drive.')); }
+      if (body.ok) return resolve(body.data);
+      const err = body.error || { code: 500, message: 'Ralat tidak diketahui.' };
+      if (err.code === 401 && !retried && onUnauthorized && (await onUnauthorized())) {
+        return apiUpload(action, data, onProgress, true).then(resolve, reject);
+      }
+      reject(new ApiError(err.code, err.message));
+    };
+    xhr.send(JSON.stringify({ action, token: getToken() || undefined, data }));
+  });
+}

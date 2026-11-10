@@ -26,7 +26,7 @@ function makeSheet(name) {
 }
 
 function create() {
-  const state = { sheets: {}, props: { GOOGLE_CLIENT_ID: 'client-123.apps.googleusercontent.com' }, cache: {}, triggers: [], folders: [], mail: [], fetchResponses: {}, advancedCalls: [] };
+  const state = { sheets: {}, props: { GOOGLE_CLIENT_ID: 'client-123.apps.googleusercontent.com' }, cache: {}, triggers: [], folders: [], mail: [], fetchResponses: {}, advancedCalls: [], files: [] };
   const ss = {
     getId: () => 'SHEET1',
     setSpreadsheetTimeZone: () => {},
@@ -57,6 +57,8 @@ function create() {
       formatDate: (d, tz, fmt) => { const p = n => String(n).padStart(2, '0'); const k = new Date(d.getTime() + 8 * 3600e3); return `${k.getUTCFullYear()}-${p(k.getUTCMonth() + 1)}-${p(k.getUTCDate())}T${p(k.getUTCHours())}:${p(k.getUTCMinutes())}:${p(k.getUTCSeconds())}`; },
       getUuid: () => crypto.randomUUID(),
       computeDigest: (alg, text) => Array.from(crypto.createHash('sha256').update(text).digest()).map(b => (b > 127 ? b - 256 : b)),
+      base64Decode: (str) => { if (!/^[A-Za-z0-9+/=]*$/.test(str)) throw new Error('bad base64'); return Array.from(Buffer.from(str, 'base64')).map(b => (b > 127 ? b - 256 : b)); },
+      newBlob: (bytes, mime, name) => ({ bytes, mime, name }),
       DigestAlgorithm: { SHA_256: 'sha256' }, Charset: { UTF_8: 'utf8' }
     },
     UrlFetchApp: { fetch: (url) => { fetchMock.calls.push(url); const r = fetchMock.respond(url); return { getResponseCode: () => r.code, getContentText: () => JSON.stringify(r.body) }; } },
@@ -65,7 +67,8 @@ function create() {
     DriveApp: {
       getFolderById: (id) => { const f = state.folders.find(x => x.id === id); if (!f) throw new Error('folder tiada ' + id); return f; },
       getFoldersByName: () => ({ hasNext: () => false }),
-      createFolder: (n) => mkFolder(n)
+      createFolder: (n) => mkFolder(n),
+      getFileById: (id) => { const f = state.files.find(x => x.id === id); if (!f) throw new Error('fail tiada'); return f; }
     },
     Drive: { Permissions: { create: (res, id, opts) => { state.advancedCalls.push({ id, email: res.emailAddress, opts }); state.folders.find(x => x.id === id).viewers.add(res.emailAddress); } } },
     Session: { getEffectiveUser: () => ({ getEmail: () => 'owner@gmail.com' }) },
@@ -80,7 +83,9 @@ function create() {
     const f = { id: 'FOLDER_' + state.folders.length, name: n, viewers: new Set(), getId() { return this.id; }, isTrashed: () => false, setName(x) { this.name = x; }, getName() { return this.name },
       addViewer(e) { this.viewers.add(e); }, removeViewer(e) { this.viewers.delete(e); },
       getFoldersByName: (nm) => { const m = state.folders.filter(x => x.parent === f && x.name === nm); let i = 0; return { hasNext: () => i < m.length, next: () => m[i++] }; },
-      createFolder: (nm) => { const c = mkFolder(nm); c.parent = f; return c; } };
+      createFolder: (nm) => { const c = mkFolder(nm); c.parent = f; return c; },
+      createFile: (blob) => { const file = { id: 'FILE_' + String(state.files.length).padStart(10, '0'), name: blob.name, blob, parent: f, getId() { return this.id; }, getName() { return this.name; }, getSize() { return this.blob.bytes.length; }, getParents() { let i = 0; const a = [this.parent]; return { hasNext: () => i < a.length, next: () => a[i++] }; } }; state.files.push(file); return file; },
+      getFiles: () => { const m = state.files.filter(x => x.parent === f); let i = 0; return { hasNext: () => i < m.length, next: () => m[i++] }; } };
     state.folders.push(f); return f;
   }
   sandbox.globalThis = sandbox;

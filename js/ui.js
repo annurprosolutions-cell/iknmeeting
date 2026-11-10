@@ -209,3 +209,59 @@ export function meetingStatusBadge(status) {
 }
 const ATT_BADGE = { 'Hadir': 'success', 'Tidak Hadir': 'danger', 'Mungkin': 'warning', 'Belum Jawab': 'muted' };
 export function attendanceBadge(a) { return badge(a || 'Belum Jawab', ATT_BADGE[a] || 'muted'); }
+
+// ---------- Fail dan gambar ----------
+export function fmtSize(n) {
+  if (!n && n !== 0) return '';
+  if (n < 1024) return n + ' B';
+  if (n < 1048576) return (n / 1024).toFixed(0) + ' KB';
+  return (n / 1048576).toFixed(1) + ' MB';
+}
+
+/** Baca fail sebagai base64 (tanpa awalan data:). */
+export function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result).split(',')[1] || '');
+    r.onerror = () => reject(new Error('Fail tidak dapat dibaca.'));
+    r.readAsDataURL(file);
+  });
+}
+
+/** Kecilkan gambar kepada JPEG segi empat 96px (potong tengah). Pulang data URL (~3-8KB). */
+export function resizePhoto(file, size = 96) {
+  return new Promise((resolve, reject) => {
+    if (!/^image\/(png|jpe?g|webp|gif)$/.test(file.type)) return reject(new Error('Pilih fail gambar (JPG atau PNG).'));
+    // data: URL (bukan blob:) kerana CSP img-src hanya membenarkan 'self', data: dan googleusercontent
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Gambar tidak dapat dibaca.'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const c = document.createElement('canvas'); c.width = c.height = size;
+        const side = Math.min(img.width, img.height);
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, size, size);
+        ctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, size, size);
+        resolve(c.toDataURL('image/jpeg', 0.82));
+      };
+      img.onerror = () => reject(new Error('Gambar tidak dapat dibaca.'));
+      img.src = String(reader.result);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+/** Avatar: gambar profil atau huruf pertama nama. */
+export function avatar(person, size = 36) {
+  const el = h('span', { class: 'avatar', 'aria-hidden': 'true' });
+  el.style.width = el.style.height = size + 'px';
+  el.style.fontSize = Math.round(size * 0.42) + 'px';
+  if (person && person.photo) {
+    const img = h('img', { src: person.photo, alt: '' });
+    el.append(img);
+  } else {
+    el.textContent = String((person && person.name) || '?').replace(/^(Dr\.?|Encik|Puan|Cik|Matron|Tuan|YBrs\.?|YM)\s+/i, '').trim().charAt(0).toUpperCase();
+  }
+  return el;
+}

@@ -3,7 +3,7 @@
  */
 
 var TZ_ = 'Asia/Kuala_Lumpur';
-var APP_VERSION_ = '0.3.0';
+var APP_VERSION_ = '0.4.0';
 
 /** Ralat yang selamat dipaparkan kepada pengguna. Ralat lain jadi 500 generik. */
 class ApiError extends Error {
@@ -199,7 +199,8 @@ function invalidateSettings_() { cacheRemove_('settings_v1'); }
 /** Subset tetapan yang selamat untuk semua pengguna (BSD 4.1). */
 function publicSettings_() {
   var s = getSettings_();
-  var types = [];
+  var types = [], series = [];
   try { types = JSON.parse(s.meeting_types || '[]'); } catch (e) { types = []; }
-  return { app_name: s.app_name || 'e-Mesyuarat IKN', meeting_types: types };
+  try { series = JSON.parse(s.meeting_series || '[]'); } catch (e) { series = []; }
+  return { app_name: s.app_name || 'e-Mesyuarat IKN', meeting_types: types, meeting_series: series, max_upload_mb: Number(s.max_upload_mb || 20) };
 }

@@ -1,5 +1,6 @@
 // S-04 Butiran Mesyuarat: tab Agenda, Bahan, Ahli & Kehadiran, Minit, Tindakan.
-import { h, clear, button, busy, badge, toast, confirmDialog, emptyState, errorBanner, skeletonRows, meetingStatusBadge, attendanceBadge, fmtDate, fmtDateTime, weekday, fmtTimeRange } from '../ui.js';
+import { h, clear, button, busy, badge, toast, confirmDialog, emptyState, errorBanner, skeletonRows, meetingStatusBadge, attendanceBadge, fmtDate, fmtDateTime, weekday, fmtTimeRange, avatar } from '../ui.js';
+import { materialsPanel } from '../materials-panel.js';
 import { icon } from '../icons.js';
 import { api } from '../api.js';
 
@@ -11,7 +12,6 @@ const TABS = [
   { id: 'actions', label: 'Tindakan' }
 ];
 const SOON = {
-  materials: ['Tiada bahan lagi', 'Bahan mesyuarat dibina pada Fasa 3.'],
   minutes: ['Minit belum tersedia', 'Skrin minit dibina pada Fasa 5.'],
   actions: ['Tiada tindakan', 'Tindakan susulan dibina pada Fasa 5.']
 };
@@ -45,7 +45,7 @@ export function render(container, { user, params }) {
     if (staff && ['Draf', 'Dijadualkan'].includes(m.status)) actions.push(button('Batalkan', { kind: 'ghost', onClick: cancel }));
     const meta = (label, ...v) => h('div', { class: 'meta-row' }, h('dt', { text: label }), h('dd', {}, ...v));
     return h('section', { class: 'card detail-head' },
-      h('div', { class: 'page-head' }, h('div', {}, h('p', { class: 'small muted', text: [m.meeting_type, m.series].filter(Boolean).join(' · ') }), h('h1', { text: m.title })), meetingStatusBadge(m.status)),
+      h('div', { class: 'page-head' }, h('div', {}, h('p', { class: 'small muted', text: [m.series, m.tahun].filter(Boolean).join(' · ') }), h('h1', { text: m.title })), meetingStatusBadge(m.status)),
       h('dl', { class: 'meta' },
         meta('Tarikh', `${weekday(m.date)}, ${fmtDate(m.date)}`),
         meta('Masa', fmtTimeRange(m.start_time, m.end_time)),
@@ -77,15 +77,22 @@ export function render(container, { user, params }) {
 
   // ----- Tab -----
   function agendaPanel() {
-    if (!m.agenda.length) return emptyState('Agenda belum disediakan', staff ? 'Editor agenda dibina pada Fasa 3.' : undefined);
-    return h('ol', { class: 'agenda-list' }, m.agenda.map((a) => h('li', { class: 'agenda-item' },
-      h('span', { class: 'agenda-seq', text: String(a.seq) }),
-      h('div', { class: 'agenda-body' },
-        h('p', { class: 'agenda-title', text: a.title }),
-        a.description ? h('p', { class: 'muted small', text: a.description }) : null,
-        h('div', { class: 'agenda-meta' }, badge(a.category, CAT_KIND[a.category] || 'muted'),
-          a.presenter_name ? h('span', { class: 'small muted', text: 'Pembentang: ' + a.presenter_name }) : null,
-          a.duration_min ? h('span', { class: 'small muted', text: a.duration_min + ' min' }) : null)))));
+    const wrap = h('div');
+    if (staff && canEdit()) wrap.append(h('p', {}, button('Edit agenda', { kind: 'secondary', iconName: 'edit', onClick: () => { location.hash = `#/meetings/${encodeURIComponent(m.id)}/agenda`; } })));
+    if (!m.agenda.length) { wrap.append(emptyState('Agenda belum disediakan', staff ? 'Tekan Edit agenda untuk menambah item.' : undefined)); return wrap; }
+    wrap.append(h('ol', { class: 'agenda-list' }, m.agenda.map((a) => {
+      const mats = m.materials.filter((x) => x.agenda_id === a.id && x.status === 'Aktif');
+      return h('li', { class: 'agenda-item' },
+        h('span', { class: 'agenda-seq', text: String(a.seq) }),
+        h('div', { class: 'agenda-body' },
+          h('p', { class: 'agenda-title', text: a.title }),
+          a.description ? h('p', { class: 'muted small', text: a.description }) : null,
+          h('div', { class: 'agenda-meta' }, badge(a.category, CAT_KIND[a.category] || 'muted'),
+            a.presenter_name ? h('span', { class: 'small muted', text: 'Pembentang: ' + a.presenter_name }) : null,
+            a.duration_min ? h('span', { class: 'small muted', text: a.duration_min + ' min' }) : null),
+          mats.length ? h('ul', { class: 'agenda-mat' }, mats.map((x) => h('li', {}, h('a', { href: `#/meetings/${encodeURIComponent(m.id)}/materials/${encodeURIComponent(x.id)}` }, icon('check', 14), ' ', x.title)))) : null));
+    })));
+    return wrap;
   }
 
   function membersPanel() {
@@ -112,7 +119,7 @@ export function render(container, { user, params }) {
       h('caption', { class: 'sr-only', text: 'Senarai ahli dan kehadiran' }),
       h('thead', {}, h('tr', {}, ['Nama', 'Jawatan', 'Kehadiran', 'Dikemas kini'].map((t) => h('th', { scope: 'col', text: t })))),
       h('tbody', {}, m.members.map((x) => h('tr', {},
-        td('Nama', h('strong', { text: x.name }), x.is_chair ? h('span', { class: 'muted', text: ' (Pengerusi)' }) : null),
+        td('Nama', h('div', { class: 'name-cell' }, avatar(x, 32), h('span', {}, h('strong', { text: x.name }), x.is_chair ? h('span', { class: 'muted', text: ' (Pengerusi)' }) : null))),
         td('Jawatan', x.position || '-'), td('Kehadiran', attendanceBadge(x.attendance)), td('Dikemas kini', fmtDateTime(x.attendance_at) || '-')))))));
     return wrap;
   }
@@ -120,6 +127,7 @@ export function render(container, { user, params }) {
   function panel() {
     if (tab === 'agenda') return agendaPanel();
     if (tab === 'members') return membersPanel();
+    if (tab === 'materials') return materialsPanel({ m, user, reload: load });
     return emptyState(SOON[tab][0], SOON[tab][1]);
   }
 
