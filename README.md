@@ -33,6 +33,8 @@ tests/                  ujian backend (mock Apps Script) dan smoke test frontend
 
 Bila kod Apps Script berubah: Deploy > Manage deployments > ikon pensil > Version: New version > Deploy (URL kekal). Frontend: push ke GitHub, Cloudflare deploy sendiri.
 
+Jika Cloudflare tidak membina selepas push: Workers & Pages > projek > Settings > Builds > Git repository > Manage (reconnect GitHub), atau tekan New deployment dan pilih branch. Semak tab Deployments bahawa commit terkini muncul. Tab "Trigger events" bukan untuk build (ia untuk cron dan tidak terpakai pada static assets).
+
 Uji setempat: `python3 -m http.server 8080` dari folder repo, buka `http://localhost:8080`.
 
 ## Ujian automatik
