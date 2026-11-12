@@ -17,7 +17,7 @@ const PDF = b64('%PDF-1.4\n%test'), PPTX = b64('PK\x03\x04rest'), DOC = b64('\xd
 let CUR = null;
 const up = (tok, o) => call('materials.upload', Object.assign({ meeting_id: CUR, file_name: 'kertas.pdf', data_base64: PDF, type: 'Kertas Makluman' }, o), tok);
 
-const mk = (title, extra) => { const r = call('meetings.create', Object.assign({ title, series: SERIES, date: '2026-12-01', start_time: '09:00', pengerusi_email: 'chair@x.com', members: ['a1@x.com', 'a2@x.com'] }, extra), S); assert.ok(r.ok, JSON.stringify(r)); return r.data.id; };
+const mk = (title, extra) => { const r = call('meetings.create', Object.assign({ title, bil: '1', date: '2026-12-01', start_time: '09:00', pengerusi_email: 'chair@x.com', members: ['a1@x.com', 'a2@x.com'] }, extra), S); assert.ok(r.ok, JSON.stringify(r)); return r.data.id; };
 const get = (id, tok) => call('meetings.get', { id }, tok || S).data;
 const M = mk('Mesyuarat Bahan'); CUR = M; const MF = get(M).drive_folder_id;
 let ag = [];

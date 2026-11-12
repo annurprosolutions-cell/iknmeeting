@@ -44,7 +44,7 @@ function handle(b) {
     if (!data.title) return err(400, 'Tajuk wajib diisi.');
     let m = db.meetings.find((x) => x.id === data.id);
     if (!m) { m = { id: 'MTG-' + (++db.seq), status: 'Draf' }; db.meetings.push(m); db.agenda[m.id] = []; db.members[m.id] = []; }
-    Object.assign(m, { title: data.title, series: data.series, tahun: data.tahun, prev_meeting_id: data.prev_meeting_id, date: data.date, start_time: data.start_time, end_time: data.end_time, venue: data.venue, online_link: data.online_link, pengerusi_email: data.pengerusi_email, notify_on_publish: data.notify_on_publish });
+    Object.assign(m, { title: data.title, series: data.title, bil: data.bil, tahun: data.tahun, prev_meeting_id: data.prev_meeting_id, date: data.date, start_time: data.start_time, end_time: data.end_time, venue: data.venue, online_link: data.online_link, pengerusi_email: data.pengerusi_email, notify_on_publish: data.notify_on_publish });
     const emails = new Set([...data.members, data.pengerusi_email, me.email].filter(Boolean));
     db.members[m.id] = [...emails].map((e) => (db.members[m.id].find((r) => r.email === e) || { email: e, attendance: 'Belum Jawab', attendance_at: '' }));
     if (data.prev_meeting_id && !db.agenda[m.id].length) db.agenda[m.id] = [{ id: 'a1', seq: 1, title: 'Pengesahan Minit Mesyuarat Lepas', category: 'Pengesahan', status: 'Belum' }, { id: 'a2', seq: 2, title: 'Perkara Berbangkit', category: 'Makluman', status: 'Belum' }];
@@ -84,13 +84,12 @@ function handle(b) {
   await page.click('.sidenav a[data-path="/meetings/new"]'); await page.waitForSelector('#main h1:has-text("Mesyuarat Baharu")');
   await page.click('button:has-text("Simpan & Terbitkan")');
   assert.ok(await page.locator('.field-error:visible').count() >= 2); ok('S-05: validasi (tajuk, siri, tarikh, ...) ditunjuk inline');
-  await page.fill('input[maxlength="200"]', 'Mesyuarat Pengurusan Bil 1/2026');
+  await page.selectOption('label:has-text("Tajuk mesyuarat") + select', { index: 1 }); await page.fill('label:has-text("Bilangan") + input', '1');
   await page.fill('input[type=date]', '2026-12-01');
   await page.fill('input[type=url]', 'http://tak-selamat');
   await page.click('button:has-text("Simpan Draf")');
   assert.ok(await page.locator('.field-error:visible:has-text("https://")').count() === 1); ok('pautan http ditolak di klien');
   await page.fill('input[type=url]', 'https://meet.google.com/abc');
-  await page.selectOption('label:has-text("Siri") + select', { index: 1 });
   await page.click('button:has-text("Simpan & Terbitkan")');
   assert.ok(await page.locator('.field-error:visible:has-text("Pilih Pengerusi")').count() === 1); ok('terbit tanpa Pengerusi ditolak di klien');
   await page.selectOption('label:has-text("Pengerusi") + select', 'chair@x.com');
@@ -102,7 +101,7 @@ function handle(b) {
   await page.check('.picker-row:has-text("Encik Ahli") input');
   await shot(page, 'form');
   await page.click('button:has-text("Simpan Draf")');
-  await page.waitForSelector('h1:has-text("Mesyuarat Pengurusan Bil 1/2026")');
+  await page.waitForSelector('h1:has-text("Mesyuarat Jawatankuasa HMI IKN")');
   assert.ok(await page.locator('.badge:has-text("Draf")').count() >= 1); ok('Draf disimpan -> S-04');
   assert.ok((await page.textContent('.meta')).includes('Dr Pengerusi')); assert.ok((await page.textContent('.meta')).includes('01/12/2026'));
   ok('S-04 papar tarikh DD/MM/YYYY dan Pengerusi');
@@ -113,19 +112,19 @@ function handle(b) {
   await page.waitForSelector('.badge:has-text("Dijadualkan")'); ok('terbit dari S-04 -> Dijadualkan');
   // mesyuarat kedua bersambung
   await page.click('.sidenav a[data-path="/meetings/new"]');
-  await page.fill('input[maxlength="200"]', 'Bil 2/2026'); await page.fill('input[type=date]', '2027-01-05'); await page.selectOption('label:has-text("Siri") + select', { index: 1 });
+  await page.selectOption('label:has-text("Tajuk mesyuarat") + select', { index: 2 }); await page.fill('label:has-text("Bilangan") + input', '2'); await page.fill('input[type=date]', '2027-01-05');
   await page.selectOption('label:has-text("Sambung daripada") + select', { index: 1 });
-  await page.click('button:has-text("Simpan Draf")'); await page.waitForSelector('h1:has-text("Bil 2/2026")');
+  await page.click('button:has-text("Simpan Draf")'); await page.waitForSelector('h1:has-text("Mesyuarat Pengurusan Kualiti HMI IKN")');
   assert.ok((await page.textContent('#tabpanel')).includes('Pengesahan Minit Mesyuarat Lepas')); assert.ok((await page.textContent('.meta')).includes('Bersambung daripada'));
   ok('sambung mesyuarat lepas: agenda automatik + pautan'); await shot(page, 'detail-agenda');
   await page.click('.sidenav a[data-path="/meetings"]'); await page.waitForSelector('.mcard');
   assert.strictEqual(await page.locator('.mcard').count(), 2);
-  await page.fill('input[type=search]', 'bil 2'); assert.strictEqual(await page.locator('.mcard').count(), 1); ok('S-03: senarai + carian');
+  await page.fill('input[type=search]', 'kualiti'); assert.strictEqual(await page.locator('.mcard').count(), 1); ok('S-03: senarai + carian');
   await page.fill('input[type=search]', ''); await page.click('.seg-btn:has-text("Lepas")'); await page.waitForSelector('text=Tiada mesyuarat dijumpai'); ok('S-03: tab Lepas kosong');
   await page.click('.seg-btn:has-text("Akan Datang")'); await shot(page, 'list');
   await page.click('a[data-path="/dashboard"]'); await page.waitForSelector('text=Draf anda'); ok('S-02: bahagian "Draf anda" untuk staf');
   await page.goto(base + '/#/meetings/MTG-1/edit'); await page.waitForSelector('h1:has-text("Edit Mesyuarat")');
-  assert.strictEqual(await page.inputValue('input[maxlength="200"]'), 'Mesyuarat Pengurusan Bil 1/2026');
+  assert.strictEqual(await page.inputValue('label:has-text("Tajuk mesyuarat") + select'), 'Mesyuarat Jawatankuasa HMI IKN');
   assert.strictEqual(await page.locator('button:has-text("Simpan & Terbitkan")').count(), 0); ok('edit mesyuarat diterbitkan: tiada butang terbit');
   assert.deepStrictEqual(problems, [], problems.join('\n')); ok('tiada ralat konsol / CSP (Setiausaha)');
 
@@ -135,7 +134,7 @@ function handle(b) {
   await page.waitForSelector('.mcard'); assert.strictEqual(await page.locator('.mcard').count(), 1);
   assert.ok((await page.textContent('.mcard')).includes('Belum Jawab')); assert.ok(!(await page.textContent('#main')).includes('Draf anda'));
   ok('Ahli: nampak mesyuarat diterbitkan sahaja, "Belum Jawab" ditonjolkan');
-  await page.click('.mcard'); await page.waitForSelector('h1:has-text("Bil 1/2026")');
+  await page.click('.mcard'); await page.waitForSelector('h1:has-text("Mesyuarat Jawatankuasa HMI IKN")');
   assert.strictEqual(await page.locator('button:has-text("Edit"), button:has-text("Batalkan"), button:has-text("Terbitkan")').count(), 0); ok('Ahli: tiada butang edit/terbit/batal');
   await page.click('#tab-members'); await page.click('.seg-btn:has-text("Hadir") >> nth=0'); await page.waitForSelector('.toast-success');
   await page.waitForSelector('.seg-btn.is-on:text-is("Hadir")'); ok('Ahli menjawab kehadiran');

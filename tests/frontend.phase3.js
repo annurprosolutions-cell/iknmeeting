@@ -39,7 +39,7 @@ function handle(b) {
   if (action === 'meetings.create' || action === 'meetings.update') {
     if (!staff) return err(403, 'Dilarang'); let m = mt(data.id);
     if (!m) { m = { id: 'MTG-' + (++db.seq), status: 'Draf', drive_folder_id: 'FOLDER' + db.seq + 'abcdefgh' }; db.meetings.push(m); db.agenda[m.id] = []; db.mats[m.id] = []; db.members[m.id] = []; }
-    Object.assign(m, { title: data.title, series: data.series, tahun: data.tahun, date: data.date, start_time: data.start_time, end_time: data.end_time, venue: data.venue, online_link: data.online_link, pengerusi_email: data.pengerusi_email, prev_meeting_id: data.prev_meeting_id, notify_on_publish: data.notify_on_publish, meeting_type: '' });
+    Object.assign(m, { title: data.title, series: data.title, bil: data.bil, tahun: data.tahun, date: data.date, start_time: data.start_time, end_time: data.end_time, venue: data.venue, online_link: data.online_link, pengerusi_email: data.pengerusi_email, prev_meeting_id: data.prev_meeting_id, notify_on_publish: data.notify_on_publish, meeting_type: '' });
     db.members[m.id] = [...new Set([...data.members, data.pengerusi_email].filter(Boolean))].map((e) => ({ email: e, attendance: 'Belum Jawab', attendance_at: '' })); return ok({ id: m.id, driveFailures: [] });
   }
   if (action === 'meetings.publish') { mt(data.id).status = 'Dijadualkan'; return ok({ status: 'Dijadualkan', driveFailures: [] }); }
@@ -121,13 +121,14 @@ function handle(b) {
   await loginAs(page, 'cred-sec');
   await page.click('.sidenav a[data-path="/meetings/new"]'); await page.waitForSelector('h1:has-text("Mesyuarat Baharu")');
   assert.strictEqual(await page.locator('label:has-text("Jenis mesyuarat")').count(), 0); ok('borang: tiada medan Jenis mesyuarat');
-  assert.strictEqual(await page.locator('label:has-text("Siri / jawatankuasa")').count(), 0);
-  const seriesOpts = await page.$$eval('label:has-text("Siri") + select option', (o) => o.map((x) => x.textContent)); assert.strictEqual(seriesOpts.length, 4); ok('borang: "Siri" ialah senarai 3 nama mesyuarat');
+  assert.strictEqual(await page.locator('label:has-text("Siri")').count(), 0); ok('borang: tiada medan Siri');
+  const titleOpts = await page.$$eval('label:has-text("Tajuk mesyuarat") + select option', (o) => o.map((x) => x.textContent)); assert.strictEqual(titleOpts.length, 4); ok('borang: Tajuk mesyuarat ialah senarai 3 nama mesyuarat');
+  assert.ok(await page.locator('label:has-text("Bilangan") + input').isVisible()); ok('borang: medan Bilangan');
+  await page.click('button:has-text("Simpan Draf")'); assert.ok(await page.locator('.field-error:has-text("Bilangan mesti nombor")').count() === 1 && await page.locator('.field-error:has-text("Pilih tajuk")').count() === 1); ok('Tajuk dan Bilangan wajib');
   const chairOpts = await page.$$eval('label:has-text("Pengerusi") + select option', (o) => o.map((x) => x.textContent)); assert.ok(chairOpts.some((t) => t.includes('Cik Ahli')) && chairOpts.some((t) => t.includes('Dr Pengarah'))); ok('Pengerusi: semua pengguna berdaftar boleh dipilih');
   await page.fill('input[type=date]', '2026-12-05'); assert.strictEqual(await page.inputValue('label:has-text("Tahun") + input'), '2026'); ok('Tahun diisi automatik daripada tarikh');
   await page.fill('label:has-text("Tahun") + input', '2027'); await page.fill('input[type=date]', '2026-12-06'); assert.strictEqual(await page.inputValue('label:has-text("Tahun") + input'), '2027'); ok('Tahun suntingan manual tidak ditimpa');
-  await page.fill('input[maxlength="200"] >> nth=0', 'Mesyuarat HMI Bil.1/2026');
-  await page.selectOption('label:has-text("Siri") + select', { index: 1 });
+  await page.selectOption('label:has-text("Tajuk mesyuarat") + select', { index: 1 }); await page.fill('label:has-text("Bilangan") + input', '1');
   await page.selectOption('label:has-text("Pengerusi") + select', 'chair@x.com');
   await page.fill('.picker input[type=search]', 'pembentang'); await page.check('.picker-row:has-text("Encik Pembentang") input');
   await page.fill('.picker input[type=search]', 'cik'); await page.check('.picker-row:has-text("Cik Ahli") input');
@@ -136,7 +137,8 @@ function handle(b) {
   await page.waitForSelector('.field-error:has-text("Jenis fail tidak dibenarkan")'); ok('lampiran .exe ditolak di klien');
   await page.setInputFiles('#att-surat', { ...PDF, name: 'surat.pdf' }); await page.setInputFiles('#att-memo', { ...PDF, name: 'memo.pdf' });
   await shot(page, 'form-attach');
-  await page.click('button:has-text("Simpan Draf")'); await page.waitForSelector('h1:has-text("Mesyuarat HMI Bil.1/2026")');
+  await page.click('button:has-text("Simpan Draf")'); await page.waitForSelector('h1:has-text("Mesyuarat Jawatankuasa HMI IKN")');
+  assert.ok((await page.textContent('#main')).includes('Bil.1/2027')); ok('butiran: Bil.1/2027 dipaparkan (tahun suntingan manual)');
   assert.ok(db.calls.filter((c) => c === 'materials.upload').length === 2); ok('surat jemputan dan memo dimuat naik bersama simpan');
   assert.ok((await page.textContent('.meta')).includes('Dr Pengarah')); assert.ok((await page.textContent('#main')).includes('2027'));
   await page.click('#tab-materials'); await page.waitForSelector('.mat-item');
@@ -144,7 +146,7 @@ function handle(b) {
   await page.click('a[data-path="/meetings"]'); await page.waitForSelector('.mcard');
 
   // ===== Editor agenda =====
-  await page.goto(base + '/#/meetings/MTG-1'); await page.waitForSelector('h1:has-text("Mesyuarat HMI")');
+  await page.goto(base + '/#/meetings/MTG-1'); await page.waitForSelector('h1:has-text("Mesyuarat Jawatankuasa HMI IKN")');
   await page.click('button:has-text("Edit agenda")'); await page.waitForSelector('h1:has-text("Editor Agenda")');
   assert.ok(await page.locator('text=Tambah item agenda pertama').isVisible());
   async function addItem(title, cat, presenter, dur) {
@@ -171,7 +173,7 @@ function handle(b) {
   await page.waitForSelector('.ag-item:has-text("Pengesahan Minit Lepas")'); ok('agenda: edit item');
 
   // ===== Bahan =====
-  await page.goto(base + '/#/meetings/MTG-1'); await page.waitForSelector('h1:has-text("Mesyuarat HMI")');
+  await page.goto(base + '/#/meetings/MTG-1'); await page.waitForSelector('h1:has-text("Mesyuarat Jawatankuasa HMI IKN")');
   await page.click('#tab-materials'); await page.waitForSelector('button:has-text("Muat naik")');
   await page.click('button:has-text("Muat naik")');
   await page.setInputFiles('#upl-file', { name: 'virus.exe', mimeType: 'application/octet-stream', buffer: Buffer.from('MZ') }); await page.click('.modal .btn-primary');
@@ -203,7 +205,7 @@ function handle(b) {
 
   // ===== Pembentang =====
   ({ page, problems } = await newPage());
-  await loginAs(page, 'cred-a1'); await page.goto(base + '/#/meetings/MTG-1'); await page.waitForSelector('h1:has-text("Mesyuarat HMI")');
+  await loginAs(page, 'cred-a1'); await page.goto(base + '/#/meetings/MTG-1'); await page.waitForSelector('h1:has-text("Mesyuarat Jawatankuasa HMI IKN")');
   await page.click('#tab-materials'); await page.waitForSelector('button:has-text("Muat naik")');
   assert.strictEqual(await page.locator('button:has-text("Daftar pautan Drive"), button:has-text("Imbas folder Drive")').count(), 0); ok('pembentang: tiada daftar/imbas');
   assert.ok(!(await page.textContent('#tabpanel')).includes('Bahan Bicara Pengarah')); ok('pembentang tidak nampak Bahan Bicara');
@@ -216,14 +218,14 @@ function handle(b) {
 
   // ===== Ahli biasa, Pengerusi =====
   ({ page, problems } = await newPage());
-  await loginAs(page, 'cred-a2'); await page.goto(base + '/#/meetings/MTG-1'); await page.waitForSelector('h1:has-text("Mesyuarat HMI")'); await page.click('#tab-materials'); await page.waitForSelector('.mat-item');
+  await loginAs(page, 'cred-a2'); await page.goto(base + '/#/meetings/MTG-1'); await page.waitForSelector('h1:has-text("Mesyuarat Jawatankuasa HMI IKN")'); await page.click('#tab-materials'); await page.waitForSelector('.mat-item');
   assert.strictEqual(await page.locator('button:has-text("Muat naik")').count(), 0); assert.ok(!(await page.textContent('#tabpanel')).includes('Bahan Bicara')); ok('Ahli biasa: tiada butang muat naik, tiada Bahan Bicara');
   assert.deepStrictEqual(await page.$$eval('[role=tab]', (t) => t.map((x) => x.textContent)), ['Agenda', 'Bahan', 'Ahli & Kehadiran']); ok('Ahli: tab Agenda, Bahan, Ahli & Kehadiran sahaja');
   assert.deepStrictEqual(await page.$$eval('.sidenav .nav-link', (a) => a.map((x) => x.textContent)), ['Dashboard', 'Mesyuarat']); ok('Ahli: menu Dashboard dan Mesyuarat sahaja');
   assert.ok((await page.title()).endsWith('SyuraDocs') && (await page.textContent('.brand')).includes('SyuraDocs')); ok('nama SyuraDocs pada header dan tajuk tab');
   await page.goto(base + '/#/meetings/MTG-1/agenda'); await page.waitForSelector('text=Tiada akses'); ok('Ahli: /agenda = Tiada akses');
   ({ page, problems } = await newPage());
-  await loginAs(page, 'cred-chair'); await page.goto(base + '/#/meetings/MTG-1'); await page.waitForSelector('h1:has-text("Mesyuarat HMI")'); await page.click('#tab-materials'); await page.waitForSelector('.mat-item');
+  await loginAs(page, 'cred-chair'); await page.goto(base + '/#/meetings/MTG-1'); await page.waitForSelector('h1:has-text("Mesyuarat Jawatankuasa HMI IKN")'); await page.click('#tab-materials'); await page.waitForSelector('.mat-item');
   assert.ok((await page.textContent('#tabpanel')).includes('Bahan Bicara Pengarah')); ok('Pengerusi mesyuarat itu nampak Bahan Bicara');
   assert.deepStrictEqual(problems, [], problems.join('\n'));
 

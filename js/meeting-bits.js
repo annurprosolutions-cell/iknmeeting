@@ -9,7 +9,7 @@ export function meetingCard(m, { showAttendance = false } = {}) {
     h('div', { class: 'mcard-date', 'aria-hidden': 'true' }, h('span', { class: 'mcard-day', text: dm.day }), h('span', { class: 'mcard-month', text: dm.month })),
     h('div', { class: 'mcard-body' },
       h('p', { class: 'mcard-title', text: m.title }),
-      h('p', { class: 'muted small mcard-meta', text: [fmtTimeRange(m.start_time, m.end_time), m.venue].filter(Boolean).join(' · ') }),
+      h('p', { class: 'muted small mcard-meta', text: [m.bil ? `Bil.${m.bil}/${m.tahun}` : '', fmtTimeRange(m.start_time, m.end_time), m.venue].filter(Boolean).join(' · ') }),
       h('div', { class: 'mcard-badges' }, meetingStatusBadge(m.status),
         showAttendance && m.my_attendance === 'Belum Jawab' && m.status !== 'Draf' ? attendanceBadge('Belum Jawab') : null,
         showAttendance && m.my_attendance && m.my_attendance !== 'Belum Jawab' ? attendanceBadge(m.my_attendance) : null)),

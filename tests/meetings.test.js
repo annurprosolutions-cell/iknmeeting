@@ -46,7 +46,7 @@ t('Setiausaha cipta Draf: folder Drive dicipta, pengerusi + setiausaha auto-ahli
 t('validasi input ditolak 400', () => {
   const bad = (o) => assert.strictEqual(call('meetings.create', Object.assign({}, base, o), S).error.code, 400, JSON.stringify(o));
   bad({ title: '' }); bad({ date: '2026-13-40' }); bad({ date: '01/12/2026' }); bad({ start_time: '25:00' }); bad({ end_time: '08:00' });
-  bad({ online_link: 'http://tak-selamat.com' }); bad({ series: 'Rekaan' }); bad({ series: '' }); bad({ tahun: '26' }); bad({ pengerusi_email: 'tiada@x.com' });
+  bad({ online_link: 'http://tak-selamat.com' }); bad({ bil: 'abc' }); bad({ bil: '0' }); bad({ bil: '1234' }); bad({ tahun: '26' }); bad({ pengerusi_email: 'tiada@x.com' });
   bad({ members: ['tiada@x.com'] }); bad({ members: 'a1@x.com' }); bad({ title: 'x'.repeat(201) });
 });
 t('Draf tersembunyi: Ahli ahli senarai tidak nampak, get ditolak 403; Pengerusi juga', () => {
@@ -203,6 +203,66 @@ t('pindaan client: pengerusi boleh sesiapa pengguna Aktif; tiada jenis mesyuarat
 t('tahun boleh dilaraskan dan disimpan', () => {
   const id = call('meetings.create', Object.assign({}, base, { title: 'Tahun Lain', tahun: '2025' }), S).data.id;
   assert.strictEqual(call('meetings.get', { id }, S).data.tahun, '2025');
+});
+
+const mkM = (title, extra) => { const r = call('meetings.create', Object.assign({}, base, { title, bil: '1' }, extra), S); assert.ok(r.ok, JSON.stringify(r)); return r.data.id; };
+const folder_ = (id) => state.folders.find(f => f.id === id);
+const getM = (id, tok) => call('meetings.get', { id }, tok || S).data;
+t('Bilangan disimpan; siri = tajuk; Bil.N/Tahun dipulangkan', () => {
+  const id = call('meetings.create', Object.assign({}, base, { title: SERIES[1], bil: '3', tahun: '2026' }), S).data.id;
+  const g = getM(id); assert.strictEqual(g.bil, '3'); assert.strictEqual(g.series, SERIES[1]); assert.strictEqual(g.title, SERIES[1]);
+  assert.ok(call('meetings.update', Object.assign({}, base, { id, title: SERIES[1], bil: '4' }), S).ok); assert.strictEqual(getM(id).bil, '4');
+  assert.strictEqual(call('meetings.list', {}, S).data.meetings.find(x => x.id === id).bil, '4');
+});
+t('ahli dijemput TAPI mesyuarat masih Draf: tak nampak; staf nampak amaran punca; selepas terbit: nampak', () => {
+  const id = mkM('Ujian Draf Ahli'); // Draf
+  assert.strictEqual(call('meetings.list', {}, A1).data.meetings.some(x => x.id === id), false);
+  assert.strictEqual(call('meetings.get', { id }, S).data.status, 'Draf');
+  call('meetings.publish', { id }, S);
+  assert.strictEqual(call('meetings.list', {}, A1).data.meetings.some(x => x.id === id), true);
+});
+t('baris ahli disunting manual dalam Sheet (HURUF BESAR + ruang kosong) masih beri akses', () => {
+  const id = mkM('Emel Manual'); call('meetings.publish', { id }, S);
+  const sh = state.sheets.meeting_members; const col = sh.data[0].indexOf('email');
+  const row = sh.data.findIndex((r, i) => i > 0 && r[sh.data[0].indexOf('meeting_id')] === id && r[col] === 'a1@x.com');
+  sh.data[row][col] = '  A1@X.COM ';
+  assert.strictEqual(call('meetings.list', {}, A1).data.meetings.some(x => x.id === id), true, 'senarai');
+  const g = call('meetings.get', { id }, A1); assert.ok(g.ok, JSON.stringify(g)); assert.strictEqual(g.data.my_attendance, 'Belum Jawab');
+  assert.ok(call('attendance.set', { meeting_id: id, attendance: 'Hadir' }, A1).ok);
+  assert.strictEqual(call('meetings.get', { id }, A1).data.my_attendance, 'Hadir');
+  const m = call('meetings.get', { id }, S).data.members.find(x => x.name === 'A1'); assert.ok(m, 'nama dipadankan walaupun emel beza huruf'); assert.strictEqual(m.access, 'ok');
+  assert.ok(!('access' in call('meetings.get', { id }, A1).data.members[0]), 'medan diagnostik hanya untuk staf');
+});
+t('staf nampak ahli yang emelnya tiada dalam senarai pengguna / tidak aktif', () => {
+  const id = mkM('Diagnostik'); call('meetings.publish', { id }, S);
+  const sh = state.sheets.meeting_members; sh.data.push(['MEM-gantung01', id, 'orang.luar@x.com', 'Belum Jawab', '', 'x', '']);
+  call('users.deactivate', { email: 'a2@x.com' }, A);
+  const mem = call('meetings.get', { id }, S).data.members;
+  assert.strictEqual(mem.find(x => x.email === 'orang.luar@x.com').access, 'tidak_berdaftar'); assert.strictEqual(mem.find(x => x.email === 'a2@x.com').access, 'tidak_aktif');
+  call('users.save', { email: 'a2@x.com', name: 'A2', role: 'Ahli', status: 'Aktif' }, A);
+});
+
+t('REGRESI 12/11: Session.getEffectiveUser gagal (skop manifest) -> terbit TETAP berjaya dan Drive dikongsi', () => {
+  state.sessionBroken = true; run('ownerEmailCache_ = null');
+  const id = mkM('Terbit Tanpa Session'); const r = call('meetings.publish', { id }, S);
+  assert.ok(r.ok, JSON.stringify(r)); assert.strictEqual(getM(id).status, 'Dijadualkan'); assert.deepStrictEqual(Array.from(r.data.driveFailures), []);
+  assert.ok(folder_(getM(id).drive_folder_id).viewers.has('a1@x.com'), 'Drive dikongsi melalui pemilik folder akar sebagai sandaran');
+  assert.strictEqual(run('ownerEmail_()'), 'owner@gmail.com', 'sandaran: pemilik folder akar, huruf kecil');
+  state.sessionBroken = false; run('ownerEmailCache_ = null');
+});
+t('REGRESI 12/11: ralat Drive semasa kongsi tidak menggagalkan terbit; dilaporkan dalam driveFailures', () => {
+  const id = mkM('Drive Rosak'); const f = folder_(getM(id).drive_folder_id);
+  f.addViewer = () => { throw new Error('Drive down'); };
+  h.ctx.Drive = undefined;
+  const r = call('meetings.publish', { id }, S); assert.ok(r.ok, JSON.stringify(r)); assert.strictEqual(getM(id).status, 'Dijadualkan');
+  assert.ok(r.data.driveFailures.length >= 2);
+});
+t('ralat dalaman: Admin nampak sebab ringkas (tanpa stack); Setiausaha / Ahli tidak', () => {
+  run("var __orig = getRoutes_; getRoutes_ = function(){ return { boom: { fn: function(){ throw new Error('Skop tiada: userinfo.email'); } } }; }");
+  const a = call('boom', {}, A), s2 = call('boom', {}, S), m1 = call('boom', {}, A1);
+  run('getRoutes_ = __orig');
+  assert.strictEqual(a.error.code, 500); assert.strictEqual(a.error.detail, 'Skop tiada: userinfo.email'); assert.ok(!/at |\.gs:/.test(a.error.detail));
+  assert.ok(!('detail' in s2.error) && !('detail' in m1.error)); assert.strictEqual(s2.error.message, 'Ralat dalaman. Sila cuba lagi.');
 });
 
 console.log(`\n${passed} ujian lulus` + (process.exitCode ? ', ADA YANG GAGAL' : ''));

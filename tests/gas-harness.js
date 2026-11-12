@@ -68,10 +68,11 @@ function create() {
       getFolderById: (id) => { const f = state.folders.find(x => x.id === id); if (!f) throw new Error('folder tiada ' + id); return f; },
       getFoldersByName: () => ({ hasNext: () => false }),
       createFolder: (n) => mkFolder(n),
+      getRootFolder: () => ({ getOwner: () => ({ getEmail: () => 'Owner@Gmail.com' }) }),
       getFileById: (id) => { const f = state.files.find(x => x.id === id); if (!f) throw new Error('fail tiada'); return f; }
     },
     Drive: { Permissions: { create: (res, id, opts) => { state.advancedCalls.push({ id, email: res.emailAddress, opts }); state.folders.find(x => x.id === id).viewers.add(res.emailAddress); } } },
-    Session: { getEffectiveUser: () => ({ getEmail: () => 'owner@gmail.com' }) },
+    Session: { getEffectiveUser: () => { if (state.sessionBroken) throw new Error('You do not have permission to call Session.getEffectiveUser'); return { getEmail: () => 'owner@gmail.com' }; } },
     ScriptApp: {
       WeekDay: { MONDAY: 'MON', SUNDAY: 'SUN' },
       getProjectTriggers: () => state.triggers.slice(),

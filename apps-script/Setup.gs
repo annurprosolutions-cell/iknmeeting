@@ -15,7 +15,7 @@ var SCHEMA = {
     enums: { role: ['Admin', 'Setiausaha', 'Pengerusi', 'Ahli'], status: ['Aktif', 'Tidak Aktif'] }
   },
   meetings: {
-    headers: ['id', 'title', 'meeting_type', 'series', 'prev_meeting_id', 'date', 'start_time', 'end_time', 'venue', 'online_link', 'status', 'pengerusi_email', 'current_agenda_id', 'drive_folder_id', 'notify_on_publish', 'created_by', 'created_at', 'updated_at', 'tahun'],
+    headers: ['id', 'title', 'meeting_type', 'series', 'prev_meeting_id', 'date', 'start_time', 'end_time', 'venue', 'online_link', 'status', 'pengerusi_email', 'current_agenda_id', 'drive_folder_id', 'notify_on_publish', 'created_by', 'created_at', 'updated_at', 'tahun', 'bil'],
     enums: { status: ['Draf', 'Dijadualkan', 'Sedang Berlangsung', 'Selesai', 'Dibatalkan'], notify_on_publish: BOOL_ }
   },
   meeting_members: {
@@ -207,7 +207,7 @@ function getOrCreateFolder_(id, name, parent, log) {
   var it2 = DriveApp.getFoldersByName(name);
   while (it2.hasNext()) {
     var cand = it2.next();
-    if (!cand.isTrashed() && cand.getOwner() && cand.getOwner().getEmail() === Session.getEffectiveUser().getEmail()) return cand;
+    if (!cand.isTrashed() && cand.getOwner() && String(cand.getOwner().getEmail()).toLowerCase() === ownerEmail_()) return cand;
   }
   log.folders.push(name);
   return DriveApp.createFolder(name);

@@ -314,3 +314,5 @@ textarea.input { resize: vertical; min-height: 120px; }
 .progress.is-running > div { width: 35%; animation: progress-run 1.2s ease-in-out infinite; }
 @keyframes progress-run { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }
 @media (prefers-reduced-motion: reduce) { .progress.is-running > div { width: 100%; animation: none; opacity: .6; } }
+
+.block { display: block; margin-top: 2px; }

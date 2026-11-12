@@ -65,6 +65,12 @@ Ujian ini guna mock untuk Google (GIS dan tokeninfo) dan Apps Script. Ia **tidak
 - [ ] Tiada ralat CSP dalam Console pelayar semasa login (laras `_headers` jika ada sumber Google disekat)
 - [ ] Tutup tab, buka semula: diminta login; biarkan sesi tamat: login senyap atau kembali ke S-01
 
+## Kemas kini 13/11/2026 (versi 0.4.2)
+
+- **Pembetulan "Draf disimpan tetapi gagal diterbitkan: Ralat dalaman"**. `ownerEmail_()` (Session.getEffectiveUser) berada di luar try/catch dan boleh gagal bila manifest menyenaraikan skop secara eksplisit. Kini ia dilindungi dengan sandaran (pemilik folder akar Drive), dan ralat kongsi Drive tidak lagi menggagalkan penerbitan: mesyuarat tetap terbit dan emel yang gagal dikongsi dilaporkan. Jika ada ralat dalaman lain, **Admin** kini nampak sebab ringkas dalam kurungan (tanpa stack); pengguna lain tidak.
+- **Tajuk dan Bilangan (permintaan client)**: "Tajuk mesyuarat" ialah senarai nama mesyuarat (tetapan `meeting_series`); medan "Siri" ditukar kepada **Bilangan** (nombor, cth. 1 untuk Bil.1/2026). Lajur `bil` ditambah dalam tab `meetings` (run `setupSystem()`). "Siri" dalaman kini sentiasa sama dengan tajuk, jadi penapis dan arkib kekal berfungsi.
+- **Ahli tak nampak mesyuarat**: punca biasa ialah mesyuarat masih **Draf** (hanya diterbitkan baru ahli nampak). Padanan emel ahli kini tidak sensitif huruf besar/ruang kosong. Pada tab Ahli & Kehadiran, staf nampak amaran jika mesyuarat masih Draf atau jika ada ahli yang emelnya belum didaftarkan / tidak aktif.
+
 ## Kemas kini 12/11/2026 (versi 0.4.1)
 
 - **Pembetulan muat naik**: "Tidak dapat sambung ke server" semasa muat naik. Punca: pendengar kemajuan XHR memaksa preflight CORS yang Apps Script tolak. Kini guna `fetch` biasa; bar kemajuan diganti bar "sedang memuat naik" tanpa peratus.

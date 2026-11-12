@@ -47,7 +47,7 @@ export async function api(action, data = {}, opts = {}) {
   if (err.code === 401 && !opts.noAuth && !opts.retried && action !== 'auth.login' && onUnauthorized) {
     if (await onUnauthorized()) return api(action, data, { ...opts, retried: true });
   }
-  throw new ApiError(err.code, err.message);
+  throw new ApiError(err.code, err.detail ? `${err.message} (${err.detail})` : err.message);
 }
 
 /**
