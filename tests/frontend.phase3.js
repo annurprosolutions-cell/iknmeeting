@@ -17,7 +17,7 @@ const U = [['admin@x.com', 'Admin Sistem', 'Admin'], ['sec@x.com', 'Puan Sec', '
 const CRED = { 'cred-admin': 'admin@x.com', 'cred-sec': 'sec@x.com', 'cred-a1': 'a1@x.com', 'cred-a2': 'a2@x.com', 'cred-chair': 'chair@x.com' };
 const db = { meetings: [], members: {}, agenda: {}, mats: {}, seq: 0, calls: [] };
 const sessions = {};
-const SETTINGS = { app_name: 'e-Mesyuarat IKN', meeting_types: [], meeting_series: ['Mesyuarat Jawatankuasa HMI IKN', 'Mesyuarat Pengurusan Kualiti HMI IKN', 'Mesyuarat C&P IKN'], max_upload_mb: 20 };
+const SETTINGS = { app_name: 'SyuraDocs', meeting_types: [], meeting_series: ['Mesyuarat Jawatankuasa HMI IKN', 'Mesyuarat Pengurusan Kualiti HMI IKN', 'Mesyuarat C&P IKN'], max_upload_mb: 20 };
 function handle(b) {
   const { action, token, data } = b; db.calls.push(action);
   const ok = (d) => ({ ok: true, data: d }), err = (c, m) => ({ ok: false, error: { code: c, message: m } });
@@ -218,6 +218,9 @@ function handle(b) {
   ({ page, problems } = await newPage());
   await loginAs(page, 'cred-a2'); await page.goto(base + '/#/meetings/MTG-1'); await page.waitForSelector('h1:has-text("Mesyuarat HMI")'); await page.click('#tab-materials'); await page.waitForSelector('.mat-item');
   assert.strictEqual(await page.locator('button:has-text("Muat naik")').count(), 0); assert.ok(!(await page.textContent('#tabpanel')).includes('Bahan Bicara')); ok('Ahli biasa: tiada butang muat naik, tiada Bahan Bicara');
+  assert.deepStrictEqual(await page.$$eval('[role=tab]', (t) => t.map((x) => x.textContent)), ['Agenda', 'Bahan', 'Ahli & Kehadiran']); ok('Ahli: tab Agenda, Bahan, Ahli & Kehadiran sahaja');
+  assert.deepStrictEqual(await page.$$eval('.sidenav .nav-link', (a) => a.map((x) => x.textContent)), ['Dashboard', 'Mesyuarat']); ok('Ahli: menu Dashboard dan Mesyuarat sahaja');
+  assert.ok((await page.title()).endsWith('SyuraDocs') && (await page.textContent('.brand')).includes('SyuraDocs')); ok('nama SyuraDocs pada header dan tajuk tab');
   await page.goto(base + '/#/meetings/MTG-1/agenda'); await page.waitForSelector('text=Tiada akses'); ok('Ahli: /agenda = Tiada akses');
   ({ page, problems } = await newPage());
   await loginAs(page, 'cred-chair'); await page.goto(base + '/#/meetings/MTG-1'); await page.waitForSelector('h1:has-text("Mesyuarat HMI")'); await page.click('#tab-materials'); await page.waitForSelector('.mat-item');
@@ -236,5 +239,12 @@ function handle(b) {
     await shot(ph.page, 'phone' + hash.replace(/[#/]/g, '-'));
   }
   ok('telefon: tiada skrol mendatar (bahan, editor agenda, borang, pengguna)');
+  const pa = await newPage({ width: 390, height: 844 }); await loginAs(pa.page, 'cred-a2');
+  assert.deepStrictEqual(await pa.page.$$eval('.bottombar .nav-link', (a) => a.map((x) => x.textContent.trim())), ['Dashboard', 'Mesyuarat', 'Lagi']);
+  const cols = await pa.page.$$eval('.bottombar .nav-link', (a) => a.map((x) => Math.round(x.getBoundingClientRect().width))); assert.ok(cols.every((w) => w > 120), 'lebar butang: ' + cols);
+  await shot(pa.page, 'phone-ahli-dashboard'); ok('telefon Ahli: bar bawah 3 butang penuh lebar');
+  // Regresi 12/11/2026: pendengar kemajuan upload memaksa preflight CORS yang Apps Script tolak
+  const upSrc = ['js/api.js', 'js/upload.js', 'js/materials-panel.js', 'js/views/meeting-form.js'].map((f) => fs.readFileSync(path.join(ROOT, f), 'utf8').replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '')).join('\n');
+  assert.ok(!/\.upload\s*\.\s*(onprogress|addEventListener)/.test(upSrc) && !/XMLHttpRequest/.test(upSrc), 'kod muat naik tidak boleh guna XHR upload listener'); ok('regresi: tiada pendengar kemajuan XHR (preflight CORS)');
   await browser.close(); server.close(); console.log('\nSmoke test Fasa 3 selesai.');
 })().catch((e) => { console.error('GAGAL:', e.message.split('\n').slice(0, 8).join('\n')); process.exit(1); });

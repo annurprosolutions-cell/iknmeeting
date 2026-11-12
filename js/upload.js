@@ -17,10 +17,10 @@ export function checkFile(file) {
   return '';
 }
 
-/** action: 'materials.upload' atau 'materials.replace'. */
-export async function sendFile(action, fields, file, onProgress) {
+/** action: 'materials.upload' atau 'materials.replace'. Tiada peratus kemajuan (lihat api.js); UI papar bar berjalan. */
+export async function sendFile(action, fields, file) {
   const bad = checkFile(file);
   if (bad) throw new Error(bad);
   const data_base64 = await fileToBase64(file);
-  return apiUpload(action, { ...fields, file_name: file.name, data_base64 }, onProgress);
+  return apiUpload(action, { ...fields, file_name: file.name, data_base64 });
 }

@@ -3,7 +3,7 @@ import { GOOGLE_CLIENT_ID } from '../config.js';
 import { api, configureApi } from './api.js';
 
 const K_TOKEN = 'emi_token', K_USER = 'emi_user', K_SET = 'emi_settings';
-let user = null, settings = { app_name: 'e-Mesyuarat IKN', meeting_types: [] };
+let user = null, settings = { app_name: 'SyuraDocs', meeting_types: [] };
 let credentialHandler = null, gisPromise = null, gisInited = false, renewing = null, lostHandler = null;
 
 const ss = {

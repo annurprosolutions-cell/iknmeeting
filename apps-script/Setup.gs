@@ -57,7 +57,7 @@ var SCHEMA = {
 };
 
 var SETTINGS_SEED = [
-  ['app_name', 'e-Mesyuarat IKN', 'Nama paparan'],
+  ['app_name', 'SyuraDocs', 'Nama paparan'],
   ['root_folder_id', '', 'Folder akar Drive (diisi setupSystem)'],
   ['backup_folder_id', '', 'Folder backup (diisi setupSystem)'],
   ['meeting_types', '["Mesyuarat Pengurusan","Mesyuarat Jawatankuasa","Lain-lain"]', 'Tidak digunakan lagi (diganti meeting_series)'],
@@ -143,6 +143,13 @@ function setupSystem() {
       created_at: nowIso_(), created_by: 'sistem', last_login: ''
     });
     log.notes.push('Admin dicipta: ' + admin + ' (tukar nama di S-13 selepas login).');
+  }
+
+  // 4b. Nama sistem baharu (12/11/2026): tukar nilai lama sahaja, jangan timpa nama yang Admin tetapkan sendiri
+  var appRow = readTable_('settings').rows.filter(function (r) { return r.key === 'app_name'; })[0];
+  if (appRow && appRow.value === 'e-Mesyuarat IKN') {
+    updateObject_('settings', appRow._row, { value: 'SyuraDocs' });
+    log.notes.push('Nama sistem ditukar kepada SyuraDocs.');
   }
 
   // 5. Folder Drive

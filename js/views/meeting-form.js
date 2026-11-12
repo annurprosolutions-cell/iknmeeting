@@ -144,7 +144,7 @@ export function render(container, { user, params }) {
         for (const [k, type] of [['surat', 'Surat Jemputan'], ['memo', 'Memo']]) {
           if (!files[k]) continue;
           status.textContent = `Memuat naik ${type.toLowerCase()}…`;
-          try { await sendFile('materials.upload', { meeting_id: id, type }, files[k], (p) => { status.textContent = `Memuat naik ${type.toLowerCase()}… ${Math.round(p * 100)}%`; }); }
+          try { await sendFile('materials.upload', { meeting_id: id, type }, files[k]); }
           catch (e) { failed.push(`${type}: ${e.message}`); }
         }
       });

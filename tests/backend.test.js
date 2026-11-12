@@ -36,7 +36,15 @@ t('setupSystem tolak ADMIN_EMAIL placeholder', () => {
 });
 
 // ----- Ping, tanpa token -----
-t('ping awam berfungsi', () => assert.strictEqual(call('ping').data.pong, true));
+t('ping awam berfungsi', () => { const d = call('ping').data; assert.strictEqual(d.pong, true); assert.strictEqual(d.app, 'SyuraDocs API'); });
+t('nama sistem: pemasangan baharu SyuraDocs; nilai lama ditukar oleh setupSystem; nama tersuai tidak ditimpa', () => {
+  assert.strictEqual(run('getSettings_().app_name'), 'SyuraDocs');
+  run("setSettingValue_('app_name', 'e-Mesyuarat IKN'); invalidateSettings_(); setupSystem(); invalidateSettings_()");
+  assert.strictEqual(run('getSettings_().app_name'), 'SyuraDocs');
+  run("setSettingValue_('app_name', 'SyuraDocs IKN'); invalidateSettings_(); setupSystem(); invalidateSettings_()");
+  assert.strictEqual(run('getSettings_().app_name'), 'SyuraDocs IKN');
+  run("setSettingValue_('app_name', 'SyuraDocs'); invalidateSettings_()");
+});
 t('tanpa token ditolak 401', () => { const r = call('users.list', {}); assert.strictEqual(r.ok, false); assert.strictEqual(r.error.code, 401); });
 t('token palsu ditolak 401', () => assert.strictEqual(call('me.get', {}, 'x'.repeat(64)).error.code, 401));
 t('action tak dikenali 404, ralat JSON rosak 400', () => {

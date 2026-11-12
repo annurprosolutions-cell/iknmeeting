@@ -3,7 +3,7 @@
  */
 
 var TZ_ = 'Asia/Kuala_Lumpur';
-var APP_VERSION_ = '0.4.0';
+var APP_VERSION_ = '0.4.1';
 
 /** Ralat yang selamat dipaparkan kepada pengguna. Ralat lain jadi 500 generik. */
 class ApiError extends Error {
@@ -202,5 +202,5 @@ function publicSettings_() {
   var types = [], series = [];
   try { types = JSON.parse(s.meeting_types || '[]'); } catch (e) { types = []; }
   try { series = JSON.parse(s.meeting_series || '[]'); } catch (e) { series = []; }
-  return { app_name: s.app_name || 'e-Mesyuarat IKN', meeting_types: types, meeting_series: series, max_upload_mb: Number(s.max_upload_mb || 20) };
+  return { app_name: s.app_name || 'SyuraDocs', meeting_types: types, meeting_series: series, max_upload_mb: Number(s.max_upload_mb || 20) };
 }

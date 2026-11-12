@@ -1,9 +1,10 @@
-# e-Mesyuarat IKN
+# SyuraDocs
+
+Sistem dokumen mesyuarat tanpa kertas untuk Institut Kanser Negara (dahulu dinamakan "e-Mesyuarat IKN" dalam dokumen 01-06).
 
 Sistem mesyuarat tanpa kertas. Frontend static (vanilla HTML/CSS/JS, tiada build) di Cloudflare Pages; backend Google Apps Script; data dalam Google Sheets; fail dalam Google Drive. Rujuk dokumen 01-PRD hingga 06-IPD.
 
 **Status: Fasa 0 hingga 3 siap dibina** (Fasa 3 dalam bentuk "upload sahaja", lihat bawah). Fasa 4 hingga 7 belum bermula.
-
 
 ## Struktur
 
@@ -34,6 +35,8 @@ tests/                  ujian backend (mock Apps Script) dan smoke test frontend
 
 Bila kod Apps Script berubah: Deploy > Manage deployments > ikon pensil > Version: New version > Deploy (URL kekal). Frontend: push ke GitHub, Cloudflare deploy sendiri.
 
+Jika Cloudflare tidak membina selepas push: Workers & Pages > projek > Settings > Builds > Git repository > Manage (reconnect GitHub), atau tekan New deployment dan pilih branch. Semak tab Deployments bahawa commit terkini muncul. Tab "Trigger events" bukan untuk build (ia untuk cron dan tidak terpakai pada static assets).
+
 Uji setempat: `python3 -m http.server 8080` dari folder repo, buka `http://localhost:8080`.
 
 ## Ujian automatik
@@ -45,9 +48,10 @@ node tests/frontend.smoke.js    # perlukan Playwright; CSP sebenar dari _headers
 node tests/materials.test.js    # Fasa 3: agenda, bahan, folder terhad
 node tests/frontend.phase2.js   # S-02 hingga S-05
 node tests/frontend.phase3.js   # borang baharu, gambar, agenda, bahan, penonton
+node tests/cors-live.js         # BUKAN mock: panggil Apps Script sebenar (API_URL dalam config.js) melalui kod app
 ```
 
-Ujian ini guna mock untuk Google (GIS dan tokeninfo) dan Apps Script. Ia **tidak** menggantikan ujian dengan akaun Google sebenar di bawah.
+Ujian ini guna mock untuk Google (GIS dan tokeninfo) dan Apps Script. Ia **tidak** menggantikan ujian dengan akaun Google sebenar di bawah. Mock tidak menguatkuasakan CORS; sebab itu `cors-live.js` wujud: jalankan ia setiap kali kod `api.js` / `upload.js` berubah.
 
 ## Senarai semak pengesahan Fasa 1 (dengan akaun sebenar)
 
@@ -60,6 +64,12 @@ Ujian ini guna mock untuk Google (GIS dan tokeninfo) dan Apps Script. Ia **tidak
 - [ ] Nyahaktif Ahli: sesi Ahli itu ditolak pada panggilan seterusnya
 - [ ] Tiada ralat CSP dalam Console pelayar semasa login (laras `_headers` jika ada sumber Google disekat)
 - [ ] Tutup tab, buka semula: diminta login; biarkan sesi tamat: login senyap atau kembali ke S-01
+
+## Kemas kini 12/11/2026 (versi 0.4.1)
+
+- **Pembetulan muat naik**: "Tidak dapat sambung ke server" semasa muat naik. Punca: pendengar kemajuan XHR memaksa preflight CORS yang Apps Script tolak. Kini guna `fetch` biasa; bar kemajuan diganti bar "sedang memuat naik" tanpa peratus.
+- **Nama sistem: SyuraDocs.** `setupSystem()` menukar `app_name` lama ("e-Mesyuarat IKN") kepada SyuraDocs; nama lain yang Admin tetapkan tidak ditimpa. Folder Drive akar tidak dinamakan semula (sistem merujuk folder melalui ID, jadi selamat dinamakan semula sendiri dalam Drive jika mahu).
+- **Akses Ahli / Pengerusi**: menu Dashboard dan Mesyuarat sahaja; dalam mesyuarat hanya tab Agenda, Bahan, Ahli & Kehadiran. Admin dan Setiausaha kekal akses penuh. Ruang maklum balas/cadangan ahli (F-07) dibina pada Fasa 4.
 
 ## Naik taraf ke Fasa 3 (jika Fasa 2 sudah live)
 
