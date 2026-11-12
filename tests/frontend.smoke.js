@@ -26,7 +26,7 @@ function handle(body) {
   const ok = (d) => ({ ok: true, data: d }), err = (code, message) => ({ ok: false, error: { code, message } });
   const sOf = () => sessions[token] && db.users.find((u) => u.email === sessions[token]);
   const pub = (u) => ({ email: u.email, name: u.name, position: u.position, role: u.role });
-  const settings = { app_name: 'e-Mesyuarat IKN', meeting_types: ['A'] };
+  const settings = { app_name: 'SyuraDocs', meeting_types: ['A'] };
   if (action === 'ping') return ok({ pong: true });
   if (action === 'auth.login') {
     const who = { 'cred-admin': 'admin@contoh.com', 'cred-ahli': 'ahli@contoh.com', 'cred-sec': 'sec@contoh.com' }[data.idToken];
@@ -145,7 +145,8 @@ function handle(body) {
   ({ page, problems } = await newPage());
   await page.goto(base + '/'); await page.waitForSelector('#fake-google');
   await page.evaluate(() => { window.__who = 'cred-ahli'; }); await page.click('#fake-google'); await page.waitForSelector('.sidenav');
-  assert.deepStrictEqual(await page.$$eval('.sidenav .nav-link', (a) => a.map((x) => x.textContent)), ['Dashboard', 'Mesyuarat', 'Tindakan Saya']);
+  assert.deepStrictEqual(await page.$$eval('.sidenav .nav-link', (a) => a.map((x) => x.textContent)), ['Dashboard', 'Mesyuarat']);
+  await page.goto(base + '/#/actions'); await page.waitForSelector('text=Tiada akses');
   await page.goto(base + '/#/users'); await page.waitForSelector('text=Tiada akses'); ok('Ahli: menu terhad & /users = Tiada akses');
   await page.goto(base + '/#/tiada'); await page.waitForSelector('text=Halaman tidak dijumpai'); ok('404 halaman');
   ({ page, problems } = await newPage());

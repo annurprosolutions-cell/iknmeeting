@@ -37,11 +37,11 @@ function getRoutes_() {
 }
 
 function apiPing_() {
-  return { pong: true, app: 'e-Mesyuarat IKN API', version: APP_VERSION_, time: nowIso_() };
+  return { pong: true, app: 'SyuraDocs API', version: APP_VERSION_, time: nowIso_() };
 }
 
 function doGet() {
-  return json_({ ok: true, data: { app: 'e-Mesyuarat IKN API', message: 'API aktif. Gunakan POST.' } });
+  return json_({ ok: true, data: { app: 'SyuraDocs API', message: 'API aktif. Gunakan POST.' } });
 }
 
 function doPost(e) {

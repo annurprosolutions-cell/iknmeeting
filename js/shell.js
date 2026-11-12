@@ -7,7 +7,7 @@ const ALL = ['Admin', 'Setiausaha', 'Pengerusi', 'Ahli'];
 export const NAV = [
   { path: '/dashboard', label: 'Dashboard', icon: 'dashboard', roles: ALL, bottom: true },
   { path: '/meetings', label: 'Mesyuarat', icon: 'calendar', roles: ALL, bottom: true },
-  { path: '/actions', label: 'Tindakan Saya', short: 'Tindakan', icon: 'tasks', roles: ALL, bottom: true },
+  { path: '/actions', label: 'Tindakan Saya', short: 'Tindakan', icon: 'tasks', roles: ['Admin', 'Setiausaha'], bottom: true },
   { path: '/meetings/new', label: 'Mesyuarat Baharu', icon: 'plus', roles: ['Admin', 'Setiausaha'] },
   { path: '/users', label: 'Pengguna', icon: 'users', roles: ['Admin'] },
   { path: '/audit', label: 'Audit & Tetapan', icon: 'shield', roles: ['Admin'] }
@@ -32,7 +32,7 @@ function themePicker() {
 
 export function buildShell(user, { onLogout }) {
   const items = NAV.filter((n) => n.roles.includes(user.role));
-  const appName = getSettings().app_name || 'e-Mesyuarat IKN';
+  const appName = getSettings().app_name || 'SyuraDocs';
 
   const link = (n, cls) => h('a', { class: cls, href: '#' + n.path, 'data-path': n.path, 'aria-label': n.label }, icon(n.icon, 20), h('span', { text: cls.includes('bottom') && n.short ? n.short : n.label }));
 
@@ -64,7 +64,9 @@ export function buildShell(user, { onLogout }) {
       button('Log keluar', { kind: 'secondary', iconName: 'logout', onClick: () => { m.close(); onLogout(); } }));
     const m = openModal({ title: 'Lagi', body });
   });
-  const bottom = h('nav', { class: 'bottombar', 'aria-label': 'Menu utama (telefon)' }, items.filter((n) => n.bottom).map((n) => link(n, 'nav-link bottom-link')), more);
+  const bottomItems = items.filter((n) => n.bottom);
+  const bottom = h('nav', { class: 'bottombar', 'aria-label': 'Menu utama (telefon)' }, bottomItems.map((n) => link(n, 'nav-link bottom-link')), more);
+  bottom.style.gridTemplateColumns = `repeat(${bottomItems.length + 1}, 1fr)`;
 
   const main = h('main', { id: 'main', class: 'main', tabindex: '-1' });
   const root = h('div', { class: 'shell' },

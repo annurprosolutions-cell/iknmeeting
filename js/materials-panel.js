@@ -34,7 +34,8 @@ export function materialsPanel({ m, user, reload }) {
     };
     const inp = h('input', { type: 'file', class: 'file-input', accept: FILE_ACCEPT, id: 'upl-file' });
     f.file.input.replaceWith(inp); f.file.wrap.querySelector('label').setAttribute('for', 'upl-file');
-    const bar = h('div', { class: 'progress', hidden: true, role: 'progressbar', 'aria-label': 'Kemajuan muat naik' }, h('div'));
+    const bar = h('div', { class: 'progress is-running', hidden: true, role: 'progressbar', 'aria-label': 'Sedang memuat naik' }, h('div'));
+    const barNote = h('p', { class: 'muted small', hidden: true, text: 'Sedang memuat naik. Fail besar boleh mengambil masa seminit atau lebih; jangan tutup halaman ini.' });
     const err = h('div', { 'aria-live': 'polite' });
     const go = button('Muat naik', { kind: 'primary', iconName: 'upload', onClick: async () => {
       clear(err); f.file.clearError();
@@ -43,12 +44,12 @@ export function materialsPanel({ m, user, reload }) {
       const bad = checkFile(file); if (bad) { f.file.error(bad); return; }
       bar.hidden = false;
       try {
-        await busy(go, () => sendFile('materials.upload', { meeting_id: m.id, type: f.type.input.value, title: f.title.input.value, agenda_id: f.agenda.input.value },
-          file, (p) => { bar.firstChild.style.width = Math.round(p * 100) + '%'; }));
+        barNote.hidden = false;
+        await busy(go, () => sendFile('materials.upload', { meeting_id: m.id, type: f.type.input.value, title: f.title.input.value, agenda_id: f.agenda.input.value }, file));
         modal.close(); toast('Bahan dimuat naik.'); reload();
-      } catch (e) { bar.hidden = true; err.append(h('div', { class: 'banner banner-danger', role: 'alert' }, icon('alert', 20), h('span', { text: e.message }))); }
+      } catch (e) { bar.hidden = true; barNote.hidden = true; err.append(h('div', { class: 'banner banner-danger', role: 'alert' }, icon('alert', 20), h('span', { text: e.message }))); }
     } });
-    const modal = openModal({ title: 'Muat naik bahan', wide: true, body: h('div', {}, f.type.wrap, f.title.wrap, f.agenda.wrap, f.file.wrap, warn(), bar, err), actions: [button('Batal', { kind: 'ghost', onClick: () => modal.close() }), go] });
+    const modal = openModal({ title: 'Muat naik bahan', wide: true, body: h('div', {}, f.type.wrap, f.title.wrap, f.agenda.wrap, f.file.wrap, warn(), bar, barNote, err), actions: [button('Batal', { kind: 'ghost', onClick: () => modal.close() }), go] });
   }
 
   function registerModal() {
@@ -86,7 +87,7 @@ export function materialsPanel({ m, user, reload }) {
     const ff = field({ label: 'Fail versi baharu', required: true });
     const inp = h('input', { type: 'file', class: 'file-input', accept: FILE_ACCEPT, id: 'rep-file' });
     ff.input.replaceWith(inp); ff.wrap.querySelector('label').setAttribute('for', 'rep-file');
-    const bar = h('div', { class: 'progress', hidden: true }, h('div'));
+    const bar = h('div', { class: 'progress is-running', hidden: true, role: 'progressbar', 'aria-label': 'Sedang memuat naik' }, h('div'));
     const err = h('div', { 'aria-live': 'polite' });
     const go = button('Ganti', { kind: 'primary', onClick: async () => {
       clear(err); ff.clearError();
@@ -94,7 +95,7 @@ export function materialsPanel({ m, user, reload }) {
       const bad = checkFile(file); if (bad) { ff.error(bad); return; }
       bar.hidden = false;
       try {
-        await busy(go, () => sendFile('materials.replace', { id: mat.id }, file, (p) => { bar.firstChild.style.width = Math.round(p * 100) + '%'; }));
+        await busy(go, () => sendFile('materials.replace', { id: mat.id }, file));
         modal.close(); toast(`Versi ${mat.version + 1} dimuat naik.`); reload();
       } catch (e) { bar.hidden = true; err.append(h('div', { class: 'banner banner-danger', role: 'alert' }, icon('alert', 20), h('span', { text: e.message }))); }
     } });

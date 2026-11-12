@@ -309,3 +309,8 @@ textarea.input { resize: vertical; min-height: 120px; }
 .viewer-hint { font-size: 14px; color: var(--muted); }
 
 .grow { flex: 1 1 200px; min-width: 0; }
+
+/* Bar muat naik berjalan (tiada peratus: kemajuan sebenar memerlukan preflight CORS yang Apps Script tolak) */
+.progress.is-running > div { width: 35%; animation: progress-run 1.2s ease-in-out infinite; }
+@keyframes progress-run { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }
+@media (prefers-reduced-motion: reduce) { .progress.is-running > div { width: 100%; animation: none; opacity: .6; } }

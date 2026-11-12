@@ -20,7 +20,7 @@ const db = { meetings: [], members: {}, agenda: {}, seq: 0 };
 const sessions = {};
 function handle(b) {
   const { action, token, data } = b; const ok = (d) => ({ ok: true, data: d }), err = (c, m) => ({ ok: false, error: { code: c, message: m } });
-  const settings = { app_name: 'e-Mesyuarat IKN', meeting_types: [], meeting_series: ['Mesyuarat Jawatankuasa HMI IKN', 'Mesyuarat Pengurusan Kualiti HMI IKN'], max_upload_mb: 20 };
+  const settings = { app_name: 'SyuraDocs', meeting_types: [], meeting_series: ['Mesyuarat Jawatankuasa HMI IKN', 'Mesyuarat Pengurusan Kualiti HMI IKN'], max_upload_mb: 20 };
   if (action === 'ping') return ok({ pong: true });
   const pub = (u) => ({ email: u.email, name: u.name, position: u.position, role: u.role });
   if (action === 'auth.login') {

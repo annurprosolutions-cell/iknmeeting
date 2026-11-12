@@ -32,7 +32,7 @@ export function render(container, { user }) {
       drafts.length ? h('section', { class: 'card section' }, h('h2', { text: 'Draf anda' }),
         h('p', { class: 'muted small', text: 'Draf belum kelihatan kepada ahli sehingga diterbitkan.' }),
         h('div', { class: 'mcard-list' }, drafts.slice(0, 5).map((m) => meetingCard(m)))) : null,
-      h('section', { class: 'card section' }, h('h2', { text: 'Tindakan tertunggak' }), emptyState('Tiada tindakan tertunggak')));
+      staff ? h('section', { class: 'card section' }, h('h2', { text: 'Tindakan tertunggak' }), emptyState('Tiada tindakan tertunggak')) : null);
   }
   load();
 }

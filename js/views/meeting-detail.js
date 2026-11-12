@@ -4,12 +4,12 @@ import { materialsPanel } from '../materials-panel.js';
 import { icon } from '../icons.js';
 import { api } from '../api.js';
 
-const TABS = [
+const ALL_TABS = [
   { id: 'agenda', label: 'Agenda' },
   { id: 'materials', label: 'Bahan' },
   { id: 'members', label: 'Ahli & Kehadiran' },
-  { id: 'minutes', label: 'Minit' },
-  { id: 'actions', label: 'Tindakan' }
+  { id: 'minutes', label: 'Minit', staffOnly: true },
+  { id: 'actions', label: 'Tindakan', staffOnly: true }
 ];
 const SOON = {
   minutes: ['Minit belum tersedia', 'Skrin minit dibina pada Fasa 5.'],
@@ -20,6 +20,8 @@ const CAT_KIND = { Makluman: 'info', Perbincangan: 'teal', Keputusan: 'warning',
 export function render(container, { user, params }) {
   const staff = user.role === 'Admin' || user.role === 'Setiausaha';
   let m = null, tab = 'agenda';
+  // Ahli/Pengerusi: dokumen dan kehadiran sahaja (permintaan client 12/11/2026). Minit bertandatangan ada dalam tab Bahan.
+  const TABS = ALL_TABS.filter((t) => staff || !t.staffOnly);
   const host = h('div');
   container.append(host);
 
