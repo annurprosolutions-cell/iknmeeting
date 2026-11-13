@@ -5,7 +5,7 @@
  * SEBELUM RUN: tukar ADMIN_EMAIL di bawah kepada emel Google anda.
  */
 
-var ADMIN_EMAIL = 'GANTI_DENGAN_EMEL_ANDA@gmail.com';
+var ADMIN_EMAIL = 'annurprosolutions@gmail.com';
 
 var BOOL_ = ['TRUE', 'FALSE'];
 
