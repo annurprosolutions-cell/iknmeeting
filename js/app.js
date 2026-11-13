@@ -19,6 +19,7 @@ router.define('/dashboard', { roles: ALL, view: () => import('./views/dashboard.
 router.define('/meetings', { roles: ALL, view: () => import('./views/meetings.js'), meta: ph('Mesyuarat') });
 router.define('/meetings/new', { roles: STAFF, view: () => import('./views/meeting-form.js'), meta: ph('Mesyuarat Baharu') });
 router.define('/meetings/:id/edit', { roles: STAFF, view: () => import('./views/meeting-form.js'), meta: ph('Edit Mesyuarat') });
+router.define('/meetings/:id/live', { roles: ALL, view: () => import('./views/meeting-mode.js'), meta: { title: 'Mod Mesyuarat', live: true } });
 router.define('/meetings/:id/agenda', { roles: STAFF, view: () => import('./views/meeting-agenda.js'), meta: ph('Editor Agenda') });
 router.define('/meetings/:id/materials/:mid', { roles: ALL, view: () => import('./views/material-viewer.js'), meta: ph('Penonton Bahan') });
 router.define('/meetings/:id', { roles: ALL, view: () => import('./views/meeting-detail.js'), meta: ph('Butiran Mesyuarat') });
@@ -77,6 +78,7 @@ async function onRoute({ route, params, path }) {
     clear(app).append(shell.root);
   }
   shell.setActive(path);
+  shell.root.classList.toggle('is-live', Boolean(route && route.meta && route.meta.live)); // Mod Mesyuarat: tanpa menu
   clear(shell.main);
 
   let mod, ctx = { user, params, route: route || {}, reason: undefined };

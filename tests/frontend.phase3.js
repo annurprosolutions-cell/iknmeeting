@@ -220,7 +220,7 @@ function handle(b) {
   ({ page, problems } = await newPage());
   await loginAs(page, 'cred-a2'); await page.goto(base + '/#/meetings/MTG-1'); await page.waitForSelector('h1:has-text("Mesyuarat Jawatankuasa HMI IKN")'); await page.click('#tab-materials'); await page.waitForSelector('.mat-item');
   assert.strictEqual(await page.locator('button:has-text("Muat naik")').count(), 0); assert.ok(!(await page.textContent('#tabpanel')).includes('Bahan Bicara')); ok('Ahli biasa: tiada butang muat naik, tiada Bahan Bicara');
-  assert.deepStrictEqual(await page.$$eval('[role=tab]', (t) => t.map((x) => x.textContent)), ['Agenda', 'Bahan', 'Ahli & Kehadiran']); ok('Ahli: tab Agenda, Bahan, Ahli & Kehadiran sahaja');
+  assert.deepStrictEqual(await page.$$eval('[role=tab]', (t) => t.map((x) => x.textContent)), ['Agenda', 'Bahan', 'Komen & Cadangan', 'Ahli & Kehadiran']); ok('Ahli: tab Agenda, Bahan, Komen & Cadangan, Ahli & Kehadiran sahaja');
   assert.deepStrictEqual(await page.$$eval('.sidenav .nav-link', (a) => a.map((x) => x.textContent)), ['Dashboard', 'Mesyuarat']); ok('Ahli: menu Dashboard dan Mesyuarat sahaja');
   assert.ok((await page.title()).endsWith('SyuraDocs') && (await page.textContent('.brand')).includes('SyuraDocs')); ok('nama SyuraDocs pada header dan tajuk tab');
   await page.goto(base + '/#/meetings/MTG-1/agenda'); await page.waitForSelector('text=Tiada akses'); ok('Ahli: /agenda = Tiada akses');

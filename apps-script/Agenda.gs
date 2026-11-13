@@ -36,7 +36,7 @@ function apiAgendaSave_(session, data) {
     if (!isFinite(d) || d % 1 !== 0 || d < 1 || d > 480) throw new ApiError(400, 'Tempoh mesti nombor bulat 1 hingga 480 minit.');
     duration = d;
   }
-  return withLock_(function () {
+  var res = withLock_(function () {
     var now = nowIso_();
     if (data.id) {
       var row = agendaRows_(m.id).filter(function (r) { return r.id === data.id; })[0];
@@ -49,8 +49,10 @@ function apiAgendaSave_(session, data) {
     var id = genId_('AGD');
     appendObject_('agenda_items', { id: id, meeting_id: m.id, seq: rows.length + 1, title: title, description: description, category: category,
       presenter_email: presenter, duration_min: duration, status: 'Belum', updated_by: session.email, updated_at: now });
-    return { id: id };
+    return { id: id, touch: true };
   });
+  touchState_(m.id);
+  return { id: res.id };
 }
 
 /** Buang item. Bahan yang dikaitkan kekal tetapi dilepaskan daripada item. Item dinomborkan semula. */
@@ -66,7 +68,10 @@ function apiAgendaDelete_(session, data) {
     agendaRows_(m.id).forEach(function (r, i) { if (Number(r.seq) !== i + 1) updateObject_('agenda_items', r._row, { seq: i + 1 }); });
     readTable_('materials').rows.forEach(function (x) { if (x.meeting_id === m.id && x.agenda_id === row.id) updateObject_('materials', x._row, { agenda_id: '' }); });
     audit_(session.email, 'agenda.delete', 'agenda_items', row.id, row.title.slice(0, 100));
+    var curM = getMeetingRow_(m.id);
+    if (curM.current_agenda_id === row.id) updateObject_('meetings', curM._row, { current_agenda_id: '' });
   });
+  touchState_(m.id);
   return { id: data.id };
 }
 
@@ -86,6 +91,7 @@ function apiAgendaReorder_(session, data) {
     }
     ids.forEach(function (id, i) { if (Number(have[id].seq) !== i + 1) updateObject_('agenda_items', have[id]._row, { seq: i + 1, updated_by: session.email, updated_at: nowIso_() }); });
   });
+  touchState_(m.id);
   return { count: ids.length };
 }
 
@@ -98,5 +104,6 @@ function apiAgendaSetStatus_(session, data) {
     if (!row) throw new ApiError(404, 'Item agenda tidak dijumpai.');
     updateObject_('agenda_items', row._row, { status: status, updated_by: session.email, updated_at: nowIso_() });
   });
-  return { id: data.id, status: status };
+  var st = refreshState_(m.id);
+  return { id: data.id, status: status, agenda: st.agenda, current_agenda_id: st.current };
 }

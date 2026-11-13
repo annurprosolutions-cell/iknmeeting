@@ -83,7 +83,7 @@ function getMaterialRow_(id) {
   return r;
 }
 
-function isChair_(session, m) { return Boolean(m.pengerusi_email) && m.pengerusi_email === session.email; }
+function isChair_(session, m) { return sameEmail_(m.pengerusi_email, session.email); }
 
 function canSeeMaterial_(session, m, mat) {
   if (isStaff_(session)) return true;

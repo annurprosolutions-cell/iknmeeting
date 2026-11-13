@@ -1,12 +1,14 @@
 // S-04 Butiran Mesyuarat: tab Agenda, Bahan, Ahli & Kehadiran, Minit, Tindakan.
 import { h, clear, button, busy, badge, toast, confirmDialog, emptyState, errorBanner, skeletonRows, meetingStatusBadge, attendanceBadge, fmtDate, fmtDateTime, weekday, fmtTimeRange, avatar } from '../ui.js';
 import { materialsPanel } from '../materials-panel.js';
+import { commentsPanel } from '../comments-panel.js';
 import { icon } from '../icons.js';
 import { api } from '../api.js';
 
 const ALL_TABS = [
   { id: 'agenda', label: 'Agenda' },
   { id: 'materials', label: 'Bahan' },
+  { id: 'comments', label: 'Komen & Cadangan' },
   { id: 'members', label: 'Ahli & Kehadiran' },
   { id: 'minutes', label: 'Minit', staffOnly: true },
   { id: 'actions', label: 'Tindakan', staffOnly: true }
@@ -19,7 +21,7 @@ const CAT_KIND = { Makluman: 'info', Perbincangan: 'teal', Keputusan: 'warning',
 
 export function render(container, { user, params }) {
   const staff = user.role === 'Admin' || user.role === 'Setiausaha';
-  let m = null, tab = 'agenda';
+  let m = null, tab = 'agenda', comments = null;
   // Ahli/Pengerusi: dokumen dan kehadiran sahaja (permintaan client 12/11/2026). Minit bertandatangan ada dalam tab Bahan.
   const TABS = ALL_TABS.filter((t) => staff || !t.staffOnly);
   const host = h('div');
@@ -42,6 +44,7 @@ export function render(container, { user, params }) {
 
   function header() {
     const actions = [];
+    if (['Dijadualkan', 'Sedang Berlangsung'].includes(m.status)) actions.push(button('Mod Mesyuarat', { kind: m.status === 'Sedang Berlangsung' ? 'primary' : 'secondary', iconName: 'maximize', onClick: () => { location.hash = `#/meetings/${encodeURIComponent(m.id)}/live`; } }));
     if (canEdit()) actions.push(button('Edit', { kind: 'secondary', iconName: 'edit', onClick: () => { location.hash = `#/meetings/${encodeURIComponent(m.id)}/edit`; } }));
     if (staff && m.status === 'Draf') actions.push(button('Terbitkan', { kind: 'primary', iconName: 'check', onClick: (e) => publish(e.currentTarget) }));
     if (staff && ['Draf', 'Dijadualkan'].includes(m.status)) actions.push(button('Batalkan', { kind: 'ghost', onClick: cancel }));
@@ -134,6 +137,7 @@ export function render(container, { user, params }) {
     if (tab === 'agenda') return agendaPanel();
     if (tab === 'members') return membersPanel();
     if (tab === 'materials') return materialsPanel({ m, user, reload: load });
+    if (tab === 'comments') { if (comments) comments.destroy(); comments = commentsPanel({ m, user, filters: true }); return comments.el; }
     return emptyState(SOON[tab][0], SOON[tab][1]);
   }
 

@@ -5,6 +5,8 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
+const stats = { reads: 0 };
+
 function makeSheet(name) {
   const sh = { name, data: [[]], maxRows: 1000, maxCols: 26, validations: {}, formats: {} };
   const grow = (r, c) => { while (sh.data.length < r) sh.data.push([]); sh.data.forEach(row => { while (row.length < c) row.push(''); }); };
@@ -16,7 +18,7 @@ function makeSheet(name) {
   sh.setFrozenRows = () => {};
   sh.deleteRow = (r) => { sh.data.splice(r - 1, 1); };
   sh.getRange = (r, c, nr = 1, nc = 1) => ({
-    getValues: () => { grow(r + nr - 1, c + nc - 1); return Array.from({ length: nr }, (_, i) => Array.from({ length: nc }, (_, j) => sh.data[r - 1 + i][c - 1 + j])); },
+    getValues: () => { stats.reads++; grow(r + nr - 1, c + nc - 1); return Array.from({ length: nr }, (_, i) => Array.from({ length: nc }, (_, j) => sh.data[r - 1 + i][c - 1 + j])); },
     setValues: (v) => { grow(r + nr - 1, c + nc - 1); v.forEach((row, i) => row.forEach((x, j) => { sh.data[r - 1 + i][c - 1 + j] = x; })); },
     setNumberFormat: (f) => { sh.formats[c] = f; },
     setFontWeight: () => {},
@@ -99,7 +101,7 @@ function create() {
     const out = vm.runInContext('doPost', ctx)({ postData: { contents: JSON.stringify({ action, token, data }) } });
     return JSON.parse(out.text);
   };
-  return { ctx, call, fetchMock, state, run: (code) => vm.runInContext(code, ctx) };
+  return { ctx, call, fetchMock, state, stats, run: (code) => vm.runInContext(code, ctx) };
 }
 
 module.exports = { create };

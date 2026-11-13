@@ -32,7 +32,13 @@ function getRoutes_() {
     'materials.replace':  { fn: apiMaterialsReplace_ },
     'materials.archive':  { fn: apiMaterialsArchive_ },
     'materials.update':   { fn: apiMaterialsUpdate_ },
-    'materials.logOpen':  { fn: apiMaterialsLogOpen_ }
+    'materials.logOpen':  { fn: apiMaterialsLogOpen_ },
+    'meetings.pollState':        { fn: apiMeetingsPollState_ },
+    'meetings.setCurrentAgenda': { fn: apiMeetingsSetCurrentAgenda_ },
+    'feedback.list':   { fn: apiFeedbackList_ },
+    'feedback.add':    { fn: apiFeedbackAdd_ },
+    'feedback.update': { fn: apiFeedbackUpdate_ },
+    'feedback.delete': { fn: apiFeedbackDelete_ }
   };
 }
 

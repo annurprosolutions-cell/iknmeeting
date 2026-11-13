@@ -4,7 +4,7 @@ Sistem dokumen mesyuarat tanpa kertas untuk Institut Kanser Negara (dahulu dinam
 
 Sistem mesyuarat tanpa kertas. Frontend static (vanilla HTML/CSS/JS, tiada build) di Cloudflare Pages; backend Google Apps Script; data dalam Google Sheets; fail dalam Google Drive. Rujuk dokumen 01-PRD hingga 06-IPD.
 
-**Status: Fasa 0 hingga 3 siap dibina** (Fasa 3 dalam bentuk "upload sahaja", lihat bawah). Fasa 4 hingga 7 belum bermula.
+**Status: Fasa 0 hingga 4 siap dibina** (Fasa 3 dalam bentuk "upload sahaja"). Fasa 5 hingga 7 belum bermula.
 
 ## Struktur
 
@@ -13,9 +13,10 @@ index.html, config.js, _headers, favicon.svg
 css/styles.css          token DBD, cerah/gelap, responsif, cetak
 js/                     app, api, auth, router, shell, ui, icons
 js/views/               login (S-01), dashboard (S-02), meetings (S-03), meeting-detail (S-04), meeting-form (S-05),
-                        meeting-agenda (S-06), material-viewer (S-08), users (S-13), placeholder
+                        meeting-agenda (S-06), material-viewer (S-08), meeting-mode (S-09), users (S-13), placeholder
+js/comments-panel.js    S-10 Komen & Cadangan (digunakan dalam S-04, S-08, S-09); js/notes.js nota peribadi (localStorage)
 js/materials-panel.js   S-07 Bahan (dalam tab Bahan S-04); js/upload.js muat naik base64 dengan kemajuan
-apps-script/            Code, Auth, Users, Meetings, Agenda, Materials, DriveSync, Audit, Setup, Utils, appsscript.json
+apps-script/            Code, Auth, Users, Meetings, Agenda, Materials, Feedback, State, DriveSync, Audit, Setup, Utils, appsscript.json
 tests/                  ujian backend (mock Apps Script) dan smoke test frontend
 ```
 
@@ -47,7 +48,9 @@ node tests/meetings.test.js     # Fasa 2: mesyuarat, ahli, Drive, kehadiran
 node tests/frontend.smoke.js    # perlukan Playwright; CSP sebenar dari _headers dikenakan
 node tests/materials.test.js    # Fasa 3: agenda, bahan, folder terhad
 node tests/frontend.phase2.js   # S-02 hingga S-05
+node tests/feedback.test.js     # Fasa 4: komen, visibiliti, item semasa, pollState (baca cache sahaja)
 node tests/frontend.phase3.js   # borang baharu, gambar, agenda, bahan, penonton
+node tests/frontend.phase4.js   # Mod Mesyuarat: 3 pelayar serentak, polling, komen, nota, talian terputus
 node tests/cors-live.js         # BUKAN mock: panggil Apps Script sebenar (API_URL dalam config.js) melalui kod app
 ```
 
@@ -64,6 +67,33 @@ Ujian ini guna mock untuk Google (GIS dan tokeninfo) dan Apps Script. Ia **tidak
 - [ ] Nyahaktif Ahli: sesi Ahli itu ditolak pada panggilan seterusnya
 - [ ] Tiada ralat CSP dalam Console pelayar semasa login (laras `_headers` jika ada sumber Google disekat)
 - [ ] Tutup tab, buka semula: diminta login; biarkan sesi tamat: login senyap atau kembali ke S-01
+
+## Fasa 4 (versi 0.5.0): Mod Mesyuarat, Komen & Cadangan, Nota Saya
+
+**Naik taraf**: tampal `Feedback.gs` dan `State.gs` baharu; ganti `Code.gs`, `Meetings.gs`, `Agenda.gs`, `Materials.gs`, `Utils.gs`. Tiada lajur baharu dalam Sheet (tab `feedback` sedia ada sejak `setupSystem()` Fasa 0). Deploy **New version** pada deployment yang sama; push frontend; hard refresh.
+
+**Aliran semasa mesyuarat**
+1. Semua ahli buka mesyuarat dan tekan **Mod Mesyuarat** (butang muncul bila status Dijadualkan atau Sedang Berlangsung). Menu sistem disembunyikan; tiga lajur: agenda, bahan, komen/nota. Pada telefon, agenda dan komen ialah panel gelongsor.
+2. Setiausaha, Admin atau **Pengerusi mesyuarat itu** tekan **Mula mesyuarat**, pilih item dan tekan **Jadikan item semasa**. Mereka juga menandakan item Selesai atau Ditangguh, dan **Tamat mesyuarat**.
+3. Skrin ahli disegerakkan melalui polling setiap 20 saat (membaca cache sahaja, bukan Sheet). Ahli yang mengikut akan beralih sendiri; ahli yang sedang melayari item lain tidak dipaksa dan nampak butang **Ikut item semasa**.
+4. Ahli menulis **Komen & Cadangan** (Komen / Cadangan / Soalan / Bantahan) pada item, bahan atau mesyuarat. Lalai boleh dibaca **semua ahli**; pilihan "Pengerusi & Setiausaha sahaja" ditapis di server. Komen baharu muncul pada skrin orang lain tanpa muat semula.
+5. **Nota Saya** disimpan dalam pelayar peranti itu sahaja (tidak dihantar ke server, termasuk Admin tidak boleh baca).
+6. Selepas **Tamat**, ruang komen ditutup dan penulis tidak boleh lagi edit atau padam komen mereka (Setiausaha/Admin masih boleh padam, direkod audit).
+
+**Had dan nota**
+- Komen hanya boleh ditulis semasa Dijadualkan dan Sedang Berlangsung. Komen pada Minit belum tersedia (Fasa 5).
+- Skrin penuh dan Wake Lock bergantung pada sokongan pelayar (Safari/iOS terhad). Sistem tetap berfungsi jika tidak disokong.
+- Komen pada Bahan Bicara hanya boleh ditulis oleh Pengerusi mesyuarat itu dan Setiausaha/Admin, dan tidak dipulangkan kepada ahli lain.
+
+**Senarai semak pengesahan Fasa 4 (akaun sebenar, perlu sekurang-kurangnya 3 pelayar/peranti berasingan)**
+- [ ] Setiausaha dan 2 ahli buka Mod Mesyuarat pada mesyuarat berstatus Dijadualkan dengan agenda dan bahan
+- [ ] Setiausaha tekan Mula mesyuarat dan pilih item semasa: ahli nampak penanda "Item semasa" dalam masa kurang 30 saat
+- [ ] Pengerusi (bukan Setiausaha) boleh mula/tamat dan pilih item semasa (jika Pengerusi bukan role Admin/Setiausaha)
+- [ ] Ahli tulis cadangan: muncul pada skrin Setiausaha tanpa muat semula
+- [ ] Komen "Pengerusi & Setiausaha sahaja" tidak kelihatan pada ahli lain
+- [ ] Matikan wifi pada satu peranti: banner "Talian terputus" muncul, agenda terakhir masih boleh dibaca, banner hilang bila pulih
+- [ ] Nota Saya: tulis, muat semula halaman, nota kekal; peranti lain tidak nampak
+- [ ] **Ujian beban (IPD)**: semua ahli (~20) dalam Mod Mesyuarat selama 20 minit. Perhatikan sama ada ada ralat kuota atau paparan tersangkut
 
 ## Kemas kini 13/11/2026 (versi 0.4.2)
 

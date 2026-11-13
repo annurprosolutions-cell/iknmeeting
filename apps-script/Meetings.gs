@@ -250,6 +250,7 @@ function apiMeetingsCreate_(session, data) {
     if (f.prev_meeting_id) ensureContinuationAgenda_(id, session.email);
     audit_(session.email, 'meeting.create', 'meetings', id, f.title.slice(0, 100));
   });
+  touchState_(id);
   return { id: id };
 }
 
@@ -276,6 +277,7 @@ function apiMeetingsUpdate_(session, data) {
   });
   if (f.pengerusi_email !== old.pengerusi_email) moveRestrictedAccess_(meeting, old.pengerusi_email, f.pengerusi_email);
   if (old.date !== f.date || old.title !== f.title) renameMeetingFolder_(old.drive_folder_id, old.id, f.date, f.title);
+  touchState_(old.id);
   var failed = diff ? applyDriveDiff_(meeting, diff) : [];
   return { id: old.id, driveFailures: failed };
 }
@@ -291,6 +293,7 @@ function apiMembersSet_(session, data) {
     audit_(session.email, 'members.set', 'meetings', m.id, '+' + d.added.length + ' -' + d.removed.length);
     return d;
   });
+  touchState_(m.id);
   var failed = applyDriveDiff_(m, diff);
   return { added: diff.added.length, removed: diff.removed.length, driveFailures: failed };
 }
@@ -315,6 +318,7 @@ function apiMeetingsPublish_(session, data) {
     updateObject_('meetings', cur._row, { status: 'Dijadualkan', updated_at: nowIso_() });
     audit_(session.email, 'meeting.publish', 'meetings', m.id, members.length + ' ahli' + (failed.length ? ', ' + failed.length + ' gagal dikongsi' : ''));
   });
+  touchState_(m.id);
   moveRestrictedAccess_(m, '', m.pengerusi_email);
   if (m.notify_on_publish === 'TRUE' && typeof globalThis.notifyInvite_ === 'function') {
     try { globalThis.notifyInvite_(m.id); } catch (e) { Logger.log('notifyInvite_ gagal: ' + e); }
@@ -333,6 +337,7 @@ function apiMeetingsCancel_(session, data) {
     audit_(session.email, 'meeting.cancel', 'meetings', m.id, '');
   });
   members.forEach(function (r) { driveUnshare_(m.drive_folder_id, r.email); });
+  touchState_(m.id);
   moveRestrictedAccess_(m, m.pengerusi_email, '');
   return { id: m.id, status: 'Dibatalkan' };
 }
@@ -346,9 +351,10 @@ function apiMeetingsSetStatus_(session, data) {
   withLock_(function () {
     var cur = getMeetingRow_(m.id);
     if (allowed[cur.status] !== next) throw new ApiError(409, 'Status mesyuarat telah berubah. Muat semula.');
-    updateObject_('meetings', cur._row, { status: next, updated_at: nowIso_() });
+    updateObject_('meetings', cur._row, next === 'Selesai' ? { status: next, current_agenda_id: '', updated_at: nowIso_() } : { status: next, updated_at: nowIso_() });
     audit_(session.email, 'meeting.status', 'meetings', m.id, m.status + ' -> ' + next);
   });
+  touchState_(m.id);
   return { id: m.id, status: next };
 }
 

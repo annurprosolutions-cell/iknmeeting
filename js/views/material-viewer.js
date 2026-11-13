@@ -1,6 +1,7 @@
 // S-08 Penonton Bahan: pratonton Drive dalam iframe, muat turun, buka tab baharu, skrin penuh.
 import { h, clear, button, badge, emptyState, errorBanner, skeletonRows, fmtDateTime, fmtSize } from '../ui.js';
 import { icon } from '../icons.js';
+import { commentsPanel } from '../comments-panel.js';
 import { api } from '../api.js';
 
 export function render(container, { user, params }) {
@@ -30,6 +31,7 @@ export function render(container, { user, params }) {
           h('a', { class: 'btn btn-secondary', href: `https://drive.google.com/file/d/${id}/view`, target: '_blank', rel: 'noopener noreferrer' }, h('span', { text: 'Buka dalam tab baharu' })),
           button('Skrin penuh', { kind: 'secondary', onClick: () => { if (frame.requestFullscreen) frame.requestFullscreen(); } }))),
       frame,
+      h('section', { class: 'card section viewer-comments' }, h('h2', { text: 'Komen & Cadangan untuk bahan ini' }), commentsPanel({ m, user, target: { type: 'Bahan', id: mat.id } }).el),
       h('p', { class: 'viewer-hint' }, `Jika pratonton tidak muncul, pastikan pelayar ini sudah log masuk ke akaun Google ${user.email}, atau guna "Buka dalam tab baharu".`));
   }
   load();
