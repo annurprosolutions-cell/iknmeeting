@@ -16,7 +16,7 @@ export function render(container, { user }) {
   const listHost = h('div');
 
   const search = h('input', { class: 'input', type: 'search', placeholder: 'Cari tajuk mesyuarat', 'aria-label': 'Cari tajuk mesyuarat', autocomplete: 'off' });
-  const seriesSel = h('select', { class: 'input', 'aria-label': 'Tapis siri' }, h('option', { value: '', text: 'Semua siri' }));
+  const seriesSel = h('select', { class: 'input', 'aria-label': 'Tapis nama mesyuarat' }, h('option', { value: '', text: 'Semua mesyuarat' }));
   const tahunSel = h('select', { class: 'input', 'aria-label': 'Tapis tahun' }, h('option', { value: '', text: 'Semua tahun' }));
   tahunSel.addEventListener('change', () => { tahun = tahunSel.value; page = 1; draw(); });
   search.addEventListener('input', () => { q = search.value.trim().toLowerCase(); page = 1; draw(); });

@@ -45,6 +45,7 @@ function doGet() {
 }
 
 function doPost(e) {
+  var session = null;
   try {
     if (!e || !e.postData || !e.postData.contents) throw new ApiError(400, 'Permintaan kosong.');
     if (e.postData.contents.length > 50 * 1024 * 1024) throw new ApiError(413, 'Permintaan terlalu besar.');
@@ -55,7 +56,6 @@ function doPost(e) {
     var route = getRoutes_()[req.action];
     if (!route) throw new ApiError(404, 'Action tidak dikenali.');
 
-    var session = null;
     if (!route.public) session = requireSession_(req.token);
     var data = route.fn(session, req.data || {}, req.token);
     return json_({ ok: true, data: data === undefined ? null : data });
@@ -64,7 +64,10 @@ function doPost(e) {
       return json_({ ok: false, error: { code: err.code, message: err.message } });
     }
     Logger.log('Ralat dalaman: ' + (err && err.stack ? err.stack : err)); // stack hanya dalam log, bukan respons
-    return json_({ ok: false, error: { code: 500, message: 'Ralat dalaman. Sila cuba lagi.' } });
+    var out = { code: 500, message: 'Ralat dalaman. Sila cuba lagi.' };
+    // Hanya Admin: sebab ringkas (tanpa stack) supaya ralat boleh didiagnosis tanpa membuka log Apps Script
+    if (session && session.role === 'Admin') out.detail = String(err && err.message ? err.message : err).slice(0, 300);
+    return json_({ ok: false, error: out });
   }
 }
 

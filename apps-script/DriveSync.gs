@@ -6,7 +6,21 @@
 
 var STATUS_WITH_FOLDER_ACCESS_ = ['Dijadualkan', 'Sedang Berlangsung', 'Selesai'];
 
-function ownerEmail_() { return String(Session.getEffectiveUser().getEmail()).toLowerCase(); }
+var ownerEmailCache_ = null;
+
+/**
+ * Emel pemilik skrip. Session.getEffectiveUser() boleh gagal atau kosong bila manifest menyenaraikan skop
+ * secara eksplisit tanpa userinfo.email, jadi: cuba Session, kemudian pemilik folder akar Drive (skop drive sahaja).
+ * Tidak pernah melempar ralat: kegagalan kongsi Drive tidak patut menggagalkan penerbitan mesyuarat.
+ */
+function ownerEmail_() {
+  if (ownerEmailCache_ !== null) return ownerEmailCache_;
+  var e = '';
+  try { e = Session.getEffectiveUser().getEmail(); } catch (x) { Logger.log('getEffectiveUser gagal: ' + x); }
+  if (!e) { try { e = DriveApp.getRootFolder().getOwner().getEmail(); } catch (x) { Logger.log('pemilik folder akar gagal: ' + x); } }
+  ownerEmailCache_ = String(e || '').toLowerCase();
+  return ownerEmailCache_;
+}
 
 function getMeetingsFolder_() {
   var rootId = getSettings_().root_folder_id;

@@ -26,10 +26,12 @@ export function render(container, { user, params }) {
     const seriesList = getSettings().meeting_series || [];
     const wasPublished = Boolean(cur && cur.status !== 'Draf');
     const f = {
-      title: field({ label: 'Tajuk mesyuarat', value: cur ? cur.title : '', required: true, maxlength: 200, hint: 'Contoh: Mesyuarat Jawatankuasa HMI IKN Bil.1/2026' }),
-      series: seriesList.length
-        ? field({ label: 'Siri', value: cur ? cur.series : '', required: true, options: [{ value: '', label: '- Pilih siri -' }, ...seriesList] })
-        : field({ label: 'Siri', value: cur ? cur.series : '', required: true, maxlength: 200 }),
+      // Tajuk = nama mesyuarat (senarai tetapan meeting_series). Tajuk lama yang tiada dalam senarai dikekalkan sebagai pilihan.
+      title: seriesList.length
+        ? field({ label: 'Tajuk mesyuarat', value: cur ? cur.title : '', required: true,
+            options: [{ value: '', label: '- Pilih tajuk mesyuarat -' }, ...(cur && cur.title && !seriesList.includes(cur.title) ? [cur.title] : []), ...seriesList] })
+        : field({ label: 'Tajuk mesyuarat', value: cur ? cur.title : '', required: true, maxlength: 200 }),
+      bil: field({ label: 'Bilangan', value: cur ? cur.bil : '', required: true, maxlength: 3, hint: 'Nombor mesyuarat pada tahun itu, contoh 1 untuk Bil.1/2026.' }),
       tahun: field({ label: 'Tahun', value: cur ? cur.tahun : '', required: true, maxlength: 4, hint: 'Diisi automatik daripada tarikh.' }),
       date: field({ label: 'Tarikh', type: 'date', value: cur ? cur.date : '', required: true }),
       start: field({ label: 'Masa mula', type: 'time', value: cur ? cur.start_time : '09:00', required: true }),
@@ -74,7 +76,7 @@ export function render(container, { user, params }) {
 
     const form = h('form', { class: 'form form-wide', novalidate: true },
       h('div', { class: 'card section' }, h('h2', { text: 'Maklumat mesyuarat' }),
-        f.title.wrap, h('div', { class: 'grid-form' }, f.series.wrap, f.tahun.wrap),
+        f.title.wrap, h('div', { class: 'grid-form' }, f.bil.wrap, f.tahun.wrap),
         h('div', { class: 'grid-form grid-3' }, f.date.wrap, f.start.wrap, f.end.wrap),
         f.venue.wrap, f.link.wrap, f.chair.wrap, f.prev.wrap),
       h('div', { class: 'card section' }, h('h2', { text: 'Ahli mesyuarat' }),
@@ -99,8 +101,8 @@ export function render(container, { user, params }) {
       Object.values(f).forEach((x) => x.clearError()); picker.clearError();
       let first = null;
       const bad = (fld, msg) => { fld.error(msg); first = first || fld.input; };
-      if (!f.title.input.value.trim()) bad(f.title, 'Tajuk wajib diisi.');
-      if (!f.series.input.value) bad(f.series, 'Pilih siri mesyuarat.');
+      if (!f.title.input.value.trim()) bad(f.title, 'Pilih tajuk mesyuarat.');
+      if (!/^[1-9]\d{0,2}$/.test(f.bil.input.value.trim())) bad(f.bil, 'Bilangan mesti nombor, contoh 1.');
       if (!f.date.input.value) bad(f.date, 'Tarikh wajib diisi.');
       if (!/^\d{4}$/.test(f.tahun.input.value.trim())) bad(f.tahun, 'Tahun mesti 4 digit, contoh 2026.');
       if (!f.start.input.value) bad(f.start, 'Masa mula wajib diisi.');
@@ -124,7 +126,7 @@ export function render(container, { user, params }) {
         if (!ok) return;
       }
       const payload = {
-        title: f.title.input.value, series: f.series.input.value, tahun: f.tahun.input.value.trim(), date: f.date.input.value,
+        title: f.title.input.value, bil: f.bil.input.value.trim(), tahun: f.tahun.input.value.trim(), date: f.date.input.value,
         start_time: f.start.input.value, end_time: f.end.input.value, venue: f.venue.input.value, online_link: f.link.input.value,
         pengerusi_email: f.chair.input.value, prev_meeting_id: f.prev.input.value, notify_on_publish: notify.checked,
         members: picker.getSelected()

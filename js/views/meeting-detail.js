@@ -47,7 +47,7 @@ export function render(container, { user, params }) {
     if (staff && ['Draf', 'Dijadualkan'].includes(m.status)) actions.push(button('Batalkan', { kind: 'ghost', onClick: cancel }));
     const meta = (label, ...v) => h('div', { class: 'meta-row' }, h('dt', { text: label }), h('dd', {}, ...v));
     return h('section', { class: 'card detail-head' },
-      h('div', { class: 'page-head' }, h('div', {}, h('p', { class: 'small muted', text: [m.series, m.tahun].filter(Boolean).join(' · ') }), h('h1', { text: m.title })), meetingStatusBadge(m.status)),
+      h('div', { class: 'page-head' }, h('div', {}, h('p', { class: 'small muted', text: m.bil ? `Bil.${m.bil}/${m.tahun}` : (m.tahun || '') }), h('h1', { text: m.title })), meetingStatusBadge(m.status)),
       h('dl', { class: 'meta' },
         meta('Tarikh', `${weekday(m.date)}, ${fmtDate(m.date)}`),
         meta('Masa', fmtTimeRange(m.start_time, m.end_time)),
@@ -114,6 +114,8 @@ export function render(container, { user, params }) {
         !open ? h('p', { class: 'muted small', text: m.status === 'Draf' ? 'Kehadiran dibuka selepas mesyuarat diterbitkan.' : 'Kehadiran tidak boleh diubah lagi.' }) : null));
     }
     const count = (v) => m.members.filter((x) => x.attendance === v).length;
+    if (staff && m.status === 'Draf') wrap.append(h('p', { class: 'banner banner-info small' }, icon('info', 18), h('span', { text: 'Mesyuarat masih Draf, jadi ahli ini belum nampak mesyuarat. Tekan Terbitkan supaya ia muncul pada senarai mereka.' })));
+    if (staff && m.members.some((x) => x.access && x.access !== 'ok')) wrap.append(h('p', { class: 'banner banner-danger small', role: 'alert' }, icon('alert', 18), h('span', { text: 'Ada ahli yang tidak dapat membuka mesyuarat: emel belum didaftarkan atau pengguna tidak aktif. Semak menu Pengguna.' })));
     wrap.append(h('p', { class: 'muted', text: `${m.members.length} ahli: ${count('Hadir')} hadir, ${count('Tidak Hadir')} tidak hadir, ${count('Mungkin')} mungkin, ${count('Belum Jawab')} belum jawab.` }));
     if (staff && canEdit()) wrap.append(h('p', {}, button('Urus ahli', { kind: 'secondary', iconName: 'users', onClick: () => { location.hash = `#/meetings/${encodeURIComponent(m.id)}/edit`; } })));
     const td = (label, ...k) => h('td', { 'data-label': label }, ...k);
@@ -121,7 +123,9 @@ export function render(container, { user, params }) {
       h('caption', { class: 'sr-only', text: 'Senarai ahli dan kehadiran' }),
       h('thead', {}, h('tr', {}, ['Nama', 'Jawatan', 'Kehadiran', 'Dikemas kini'].map((t) => h('th', { scope: 'col', text: t })))),
       h('tbody', {}, m.members.map((x) => h('tr', {},
-        td('Nama', h('div', { class: 'name-cell' }, avatar(x, 32), h('span', {}, h('strong', { text: x.name }), x.is_chair ? h('span', { class: 'muted', text: ' (Pengerusi)' }) : null))),
+        td('Nama', h('div', { class: 'name-cell' }, avatar(x, 32), h('span', {}, h('strong', { text: x.name }), x.is_chair ? h('span', { class: 'muted', text: ' (Pengerusi)' }) : null,
+          x.access === 'tidak_berdaftar' ? h('span', { class: 'block' }, badge('Emel belum didaftarkan', 'danger')) : null,
+          x.access === 'tidak_aktif' ? h('span', { class: 'block' }, badge('Pengguna tidak aktif', 'warning')) : null))),
         td('Jawatan', x.position || '-'), td('Kehadiran', attendanceBadge(x.attendance)), td('Dikemas kini', fmtDateTime(x.attendance_at) || '-')))))));
     return wrap;
   }

@@ -10,6 +10,10 @@ var ATTENDANCE_ = ['Belum Jawab', 'Hadir', 'Tidak Hadir', 'Mungkin'];
 
 function isStaff_(session) { return STAFF_ROLES_.indexOf(session.role) !== -1; }
 
+/** Banding emel tanpa mengira huruf besar/kecil dan ruang kosong (baris ahli mungkin disunting manual dalam Sheet). */
+function looseEmail_(e) { return String(e || '').trim().toLowerCase(); }
+function sameEmail_(a, b) { return looseEmail_(a) === looseEmail_(b) && looseEmail_(a) !== ''; }
+
 // ---------- Akses ----------
 
 function getMeetingRow_(id) {
@@ -31,7 +35,7 @@ function requireMeetingAccess_(session, meetingId, opts) {
   opts = opts || {};
   var m = getMeetingRow_(meetingId);
   if (!isStaff_(session)) {
-    var member = getMembers_(m.id).some(function (r) { return r.email === session.email; });
+    var member = getMembers_(m.id).some(function (r) { return sameEmail_(r.email, session.email); });
     if (!member || m.status === 'Draf') throw new ApiError(403, 'Anda tidak dijemput ke mesyuarat ini.');
     if (opts.chairOnly && m.pengerusi_email !== session.email) {
       throw new ApiError(403, 'Hanya Pengerusi mesyuarat ini boleh melakukan tindakan ini.');
@@ -56,7 +60,7 @@ function shapeMeeting_(m, byEmail, staff) {
     status: m.status, pengerusi_email: m.pengerusi_email, pengerusi_name: chair ? chair.name : '',
     current_agenda_id: m.current_agenda_id, notify_on_publish: m.notify_on_publish === 'TRUE',
     created_by: m.created_by, created_at: m.created_at, updated_at: m.updated_at,
-    tahun: m.tahun || (m.date || '').slice(0, 4)
+    tahun: m.tahun || (m.date || '').slice(0, 4), bil: m.bil || ''
   };
   if (staff) o.drive_folder_id = m.drive_folder_id;
   return o;
@@ -73,11 +77,11 @@ function validDate_(s) {
 
 function parseMeetingInput_(data, selfId) {
   data = data || {};
-  var seriesList = publicSettings_().meeting_series;
   var f = {};
   f.title = cleanStr_(data.title, 200, 'Tajuk', true);
-  f.series = cleanStr_(data.series, 200, 'Siri', true);
-  if (seriesList.length && seriesList.indexOf(f.series) === -1) throw new ApiError(400, 'Siri tidak sah.');
+  f.series = f.title; // "siri" = nama mesyuarat; digunakan untuk kumpulan arkib dan penapis
+  f.bil = cleanStr_(data.bil, 3, 'Bilangan', false);
+  if (f.bil && !/^[1-9]\d{0,2}$/.test(f.bil)) throw new ApiError(400, 'Bilangan mesti nombor, contoh 1 untuk Bil.1/2026.');
   f.date = cleanStr_(data.date, 10, 'Tarikh', true);
   if (!validDate_(f.date)) throw new ApiError(400, 'Tarikh tidak sah (format YYYY-MM-DD).');
   f.tahun = cleanStr_(data.tahun, 4, 'Tahun', false) || f.date.slice(0, 4);
@@ -182,7 +186,7 @@ function apiMeetingsList_(session) {
   var counts = {}, mine = {};
   members.forEach(function (r) {
     counts[r.meeting_id] = (counts[r.meeting_id] || 0) + 1;
-    if (r.email === session.email) mine[r.meeting_id] = r.attendance;
+    if (sameEmail_(r.email, session.email)) mine[r.meeting_id] = r.attendance;
   });
   var out = [];
   readTable_('meetings').rows.forEach(function (m) {
@@ -203,10 +207,13 @@ function apiMeetingsGet_(session, data) {
   var memberRows = getMembers_(m.id);
   var photos = getPhotos_();
   o.members = memberRows.map(function (r) {
-    var u = byEmail[r.email] || {};
-    return { email: r.email, name: u.name || r.email, position: u.position || '', photo: photos[r.email] || '', attendance: r.attendance, attendance_at: r.attendance_at, is_chair: r.email === m.pengerusi_email };
+    var key = looseEmail_(r.email);
+    var u = byEmail[key] || {};
+    var row = { email: r.email, name: u.name || r.email, position: u.position || '', photo: photos[key] || '', attendance: r.attendance, attendance_at: r.attendance_at, is_chair: key === looseEmail_(m.pengerusi_email) };
+    if (staff) row.access = !u.email ? 'tidak_berdaftar' : (u.status !== 'Aktif' ? 'tidak_aktif' : 'ok');
+    return row;
   }).sort(function (a, b) { return (b.is_chair ? 1 : 0) - (a.is_chair ? 1 : 0) || a.name.localeCompare(b.name); });
-  o.my_attendance = (memberRows.filter(function (r) { return r.email === session.email; })[0] || {}).attendance || '';
+  o.my_attendance = (memberRows.filter(function (r) { return sameEmail_(r.email, session.email); })[0] || {}).attendance || '';
   o.agenda = readTable_('agenda_items').rows.filter(function (r) { return r.meeting_id === m.id; })
     .sort(function (a, b) { return Number(a.seq) - Number(b.seq); })
     .map(function (r) {
@@ -231,7 +238,7 @@ function apiMeetingsCreate_(session, data) {
   withLock_(function () {
     var now = nowIso_();
     appendObject_('meetings', {
-      id: id, title: f.title, meeting_type: '', series: f.series, tahun: f.tahun, prev_meeting_id: f.prev_meeting_id,
+      id: id, title: f.title, meeting_type: '', series: f.series, tahun: f.tahun, bil: f.bil, prev_meeting_id: f.prev_meeting_id,
       date: f.date, start_time: f.start_time, end_time: f.end_time, venue: f.venue, online_link: f.online_link,
       status: 'Draf', pengerusi_email: f.pengerusi_email, current_agenda_id: '', drive_folder_id: folderId,
       notify_on_publish: f.notify_on_publish, created_by: session.email, created_at: now, updated_at: now
@@ -257,7 +264,7 @@ function apiMeetingsUpdate_(session, data) {
   withLock_(function () {
     var cur = getMeetingRow_(old.id); // baca semula dalam lock
     updateObject_('meetings', cur._row, {
-      title: f.title, series: f.series, tahun: f.tahun, prev_meeting_id: f.prev_meeting_id,
+      title: f.title, series: f.series, tahun: f.tahun, bil: f.bil, prev_meeting_id: f.prev_meeting_id,
       date: f.date, start_time: f.start_time, end_time: f.end_time, venue: f.venue, online_link: f.online_link,
       pengerusi_email: f.pengerusi_email, notify_on_publish: f.notify_on_publish, updated_at: nowIso_()
     });
@@ -298,7 +305,10 @@ function apiMeetingsPublish_(session, data) {
   if (!members.some(function (r) { return r.email !== m.pengerusi_email; })) {
     throw new ApiError(400, 'Tambah sekurang-kurangnya 1 ahli (selain Pengerusi) sebelum menerbitkan.');
   }
-  var failed = driveShareMany_(m.drive_folder_id, members.map(function (r) { return r.email; }));
+  // Kongsi Drive tidak boleh menggagalkan penerbitan: jika gagal, mesyuarat tetap terbit dan emel yang gagal dilaporkan
+  var failed;
+  try { failed = driveShareMany_(m.drive_folder_id, members.map(function (r) { return r.email; })); }
+  catch (e) { Logger.log('driveShareMany_ gagal semasa terbit: ' + e); failed = members.map(function (r) { return r.email; }); }
   withLock_(function () {
     var cur = getMeetingRow_(m.id);
     if (cur.status !== 'Draf') throw new ApiError(409, 'Mesyuarat sudah diterbitkan.');
@@ -348,7 +358,7 @@ function apiAttendanceSet_(session, data) {
   var value = cleanEnum_(data.attendance, ATTENDANCE_, 'Kehadiran');
   if (m.status === 'Selesai' || m.status === 'Dibatalkan') throw new ApiError(409, 'Kehadiran tidak boleh diubah selepas mesyuarat tamat atau dibatalkan.');
   return withLock_(function () {
-    var row = getMembers_(m.id).filter(function (r) { return r.email === session.email; })[0];
+    var row = getMembers_(m.id).filter(function (r) { return sameEmail_(r.email, session.email); })[0];
     if (!row) throw new ApiError(403, 'Anda bukan ahli mesyuarat ini.');
     var at = value === 'Belum Jawab' ? '' : nowIso_();
     updateObject_('meeting_members', row._row, { attendance: value, attendance_at: at });
