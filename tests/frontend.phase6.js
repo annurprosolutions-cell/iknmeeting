@@ -156,6 +156,17 @@ function handle(b) {
   await ios.goto(base + '/#/dashboard'); await ios.waitForSelector('.install-banner'); assert.ok((await ios.textContent('.install-banner')).includes('Tambah ke Skrin Utama')); assert.strictEqual(await ios.locator('.install-banner button:has-text("Pasang")').count(), 0); ok('iOS: arahan "Tambah ke Skrin Utama" (tiada butang Pasang)');
   assert.ok((await ios.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)) <= 0); await shot(ios, 'pasang-ios');
 
+  // ===== Halaman log masuk: pemasangan backend tidak lengkap =====
+  for (const [label, body, expect] of [
+    ['fail hilang dilaporkan', { ok: true, data: { pong: true, missing: ['Backup.gs', 'Settings.gs'] } }, /Backup\.gs, Settings\.gs/],
+    ['ralat dalaman diberi petunjuk', { ok: false, error: { code: 500, message: 'Ralat dalaman. Sila cuba lagi.' } }, /Executions/]]) {
+    const ctx = await browser.newContext({ serviceWorkers: 'block' }); const lp = await ctx.newPage();
+    await lp.route('https://accounts.google.com/gsi/client', (r) => r.fulfill({ contentType: 'text/javascript', body: GIS }));
+    await lp.route(API, (r) => r.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(body) }));
+    await lp.goto(base + '/'); await lp.waitForSelector('.conn.conn-bad'); assert.ok(expect.test(await lp.textContent('.conn')), label); if (body.ok) assert.ok(await lp.locator('.login-msg .banner-danger').isVisible());
+    await shot(lp, 'login-' + (body.ok ? 'tak-lengkap' : 'ralat')); ok('log masuk: ' + label); await ctx.close();
+  }
+
   // ===== Telefon: S-14 =====
   const ph = await newPage('c-admin', { viewport: { width: 390, height: 844 } }); await ph.goto(base + '/#/audit'); await ph.waitForSelector('.table tbody tr');
   assert.ok((await ph.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)) <= 0, 'skrol mendatar audit'); assert.ok(await ph.locator('.table td[data-label="Tindakan"]').first().isVisible()); await shot(ph, 'audit-telefon');

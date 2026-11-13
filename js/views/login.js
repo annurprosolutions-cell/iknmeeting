@@ -28,8 +28,18 @@ export function render(container, { onLoggedIn }) {
 
   // Task 0.8: ping Apps Script dan papar status sambungan
   api('ping', {}, { noAuth: true }).then(
-    () => { status.textContent = 'Sambungan berjaya'; status.classList.add('conn-ok'); },
-    (e) => { status.textContent = 'Sambungan gagal: ' + e.message; status.classList.add('conn-bad'); });
+    (d) => {
+      if (d && Array.isArray(d.missing) && d.missing.length) {
+        // Backend sampai tetapi ada fail .gs yang belum ditampal: papar jelas untuk Admin
+        status.textContent = 'Sambungan berjaya, tetapi pemasangan Apps Script tidak lengkap. Fail belum ditampal: ' + d.missing.join(', ') + '.';
+        status.classList.add('conn-bad');
+        msg.append(errorBanner('Sistem belum boleh digunakan sepenuhnya. Admin perlu menampal fail Apps Script yang hilang (' + d.missing.join(', ') + ') dan Deploy > New version.'));
+      } else { status.textContent = 'Sambungan berjaya'; status.classList.add('conn-ok'); }
+    },
+    (e) => {
+      status.textContent = 'Sambungan gagal: ' + e.message + (e.code === 500 ? ' Kemungkinan fail Apps Script tertinggal atau belum di-deploy sebagai New version. Semak Apps Script > Executions.' : '');
+      status.classList.add('conn-bad');
+    });
 
   renderLoginButton(btnHost, (r) => {
     clear(msg);

@@ -71,6 +71,20 @@ Ujian ini guna mock untuk Google (GIS dan tokeninfo) dan Apps Script. Ia **tidak
 - [ ] Tiada ralat CSP dalam Console pelayar semasa login (laras `_headers` jika ada sumber Google disekat)
 - [ ] Tutup tab, buka semula: diminta login; biarkan sesi tamat: login senyap atau kembali ke S-01
 
+## Penyelesaian masalah: "Ralat dalaman" pada log masuk / "Sambungan gagal" pada halaman log masuk
+
+Jika **ping pun gagal** dengan "Ralat dalaman", penghala Apps Script tidak dapat membina senarai action: sekurang-kurangnya satu fail `.gs` belum ditampal atau masih versi lama. Dari versi **0.6.1**, satu fail tertinggal tidak lagi merosakkan semua action; ping melaporkan fail yang hilang dan halaman log masuk memaparkannya.
+
+**Projek Apps Script mesti ada 15 fail `.gs`** (dan `appsscript.json`):
+`Agenda, Audit, Auth, Backup, Code, DriveSync, Feedback, Materials, Meetings, Notify, Settings, Setup, State, Users, Utils`.
+
+Langkah:
+1. Ganti **Code.gs** dengan versi 0.6.1 dan pastikan semua 15 fail wujud dan versi terkini (terutama `Audit.gs`, `Settings.gs`, `Backup.gs`, `Notify.gs`, `Feedback.gs`, `State.gs`).
+2. Deploy > Manage deployments > pensil > **Version: New version** > Deploy (deployment yang sama; menyimpan fail sahaja tidak mengemas kini web app).
+3. Muat semula halaman log masuk: ia akan menyenaraikan fail yang masih hilang.
+4. Jika masih "Ralat dalaman": Apps Script > **Executions** > klik pelaksanaan yang gagal; mesej (cth. `ReferenceError: apiSettingsGet_ is not defined`) menyebut function yang hilang.
+5. Semak dari terminal: `curl -sL -H 'Content-Type: text/plain' -d '{"action":"ping"}' <API_URL>`. Nilai `version` mesti sepadan dengan versi terkini dan tiada `missing`.
+
 ## Fasa 6 (versi 0.6.0): Notifikasi emel, Audit, Tetapan, Backup, PWA
 
 **Naik taraf**

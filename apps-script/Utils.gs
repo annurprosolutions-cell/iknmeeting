@@ -3,7 +3,7 @@
  */
 
 var TZ_ = 'Asia/Kuala_Lumpur';
-var APP_VERSION_ = '0.6.0';
+var APP_VERSION_ = '0.6.1';
 
 /** Ralat yang selamat dipaparkan kepada pengguna. Ralat lain jadi 500 generik. */
 class ApiError extends Error {

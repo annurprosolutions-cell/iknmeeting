@@ -27,7 +27,7 @@ function makeSheet(name) {
   return sh;
 }
 
-function create() {
+function create(opts = {}) {
   const state = { sheets: {}, props: { GOOGLE_CLIENT_ID: 'client-123.apps.googleusercontent.com' }, cache: {}, triggers: [], folders: [], mail: [], fetchResponses: {}, advancedCalls: [], files: [], mail: [], quota: 100, mailFail: null, fileSeq: 0 };
   const ss = {
     getId: () => 'SHEET1',
@@ -105,8 +105,10 @@ function create() {
   sandbox.globalThis = sandbox;
   const ctx = vm.createContext(sandbox);
   const dir = path.join(__dirname, '..', 'apps-script');
-  ['Utils', ...fs.readdirSync(dir).filter(f => f.endsWith('.gs') && f !== 'Utils.gs').map(f => f.replace('.gs', ''))].forEach(n => {
-    vm.runInContext(fs.readFileSync(path.join(dir, n + '.gs'), 'utf8'), ctx, { filename: n + '.gs' });
+  ['Utils', ...fs.readdirSync(dir).filter(f => f.endsWith('.gs') && f !== 'Utils.gs').map(f => f.replace('.gs', ''))].filter(n => !(opts.skip || []).includes(n + '.gs')).forEach(n => {
+    let src = fs.readFileSync(path.join(dir, n + '.gs'), 'utf8');
+    (opts.drop || []).forEach(fn => { src = src.replace(new RegExp('^function ' + fn + '\\([\\s\\S]*?^}\\n', 'm'), ''); }); // simulasi fail versi lama
+    vm.runInContext(src, ctx, { filename: n + '.gs' });
   });
   const call = (action, data, token) => {
     const out = vm.runInContext('doPost', ctx)({ postData: { contents: JSON.stringify({ action, token, data }) } });
