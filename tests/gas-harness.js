@@ -28,7 +28,7 @@ function makeSheet(name) {
 }
 
 function create() {
-  const state = { sheets: {}, props: { GOOGLE_CLIENT_ID: 'client-123.apps.googleusercontent.com' }, cache: {}, triggers: [], folders: [], mail: [], fetchResponses: {}, advancedCalls: [], files: [] };
+  const state = { sheets: {}, props: { GOOGLE_CLIENT_ID: 'client-123.apps.googleusercontent.com' }, cache: {}, triggers: [], folders: [], mail: [], fetchResponses: {}, advancedCalls: [], files: [], mail: [], quota: 100, mailFail: null, fileSeq: 0 };
   const ss = {
     getId: () => 'SHEET1',
     setSpreadsheetTimeZone: () => {},
@@ -56,7 +56,7 @@ function create() {
       waitLock: () => { if (lockState.held) throw new Error('lock sudah dipegang (tidak reentrant)'); lockState.held = 1; },
       releaseLock: () => { lockState.held = 0; } }) },
     Utilities: {
-      formatDate: (d, tz, fmt) => { const p = n => String(n).padStart(2, '0'); const k = new Date(d.getTime() + 8 * 3600e3); return `${k.getUTCFullYear()}-${p(k.getUTCMonth() + 1)}-${p(k.getUTCDate())}T${p(k.getUTCHours())}:${p(k.getUTCMinutes())}:${p(k.getUTCSeconds())}`; },
+      formatDate: (d, tz, fmt) => { const p = n => String(n).padStart(2, '0'); const k = new Date(d.getTime() + 8 * 3600e3); const map = { yyyy: k.getUTCFullYear(), MM: p(k.getUTCMonth() + 1), dd: p(k.getUTCDate()), HH: p(k.getUTCHours()), mm: p(k.getUTCMinutes()), ss: p(k.getUTCSeconds()) }; return fmt.replace(/'([^']*)'|yyyy|MM|dd|HH|mm|ss/g, (m, lit) => (lit !== undefined ? lit : map[m])); },
       getUuid: () => crypto.randomUUID(),
       computeDigest: (alg, text) => Array.from(crypto.createHash('sha256').update(text).digest()).map(b => (b > 127 ? b - 256 : b)),
       base64Decode: (str) => { if (!/^[A-Za-z0-9+/=]*$/.test(str)) throw new Error('bad base64'); return Array.from(Buffer.from(str, 'base64')).map(b => (b > 127 ? b - 256 : b)); },
@@ -65,12 +65,13 @@ function create() {
     },
     UrlFetchApp: { fetch: (url) => { fetchMock.calls.push(url); const r = fetchMock.respond(url); return { getResponseCode: () => r.code, getContentText: () => JSON.stringify(r.body) }; } },
     ContentService: { MimeType: { JSON: 'json' }, createTextOutput: (t) => ({ text: t, setMimeType() { return this; } }) },
+    MailApp: { sendEmail: (o) => { if (state.mailFail && state.mailFail(o.to)) throw new Error('Mail gagal: ' + o.to); state.mail.push(o); state.quota--; }, getRemainingDailyQuota: () => state.quota },
     Logger: { log: () => {} },
     DriveApp: {
       getFolderById: (id) => { const f = state.folders.find(x => x.id === id); if (!f) throw new Error('folder tiada ' + id); return f; },
       getFoldersByName: () => ({ hasNext: () => false }),
       createFolder: (n) => mkFolder(n),
-      getRootFolder: () => ({ getOwner: () => ({ getEmail: () => 'Owner@Gmail.com' }) }),
+      getRootFolder: () => state.myRoot,
       getFileById: (id) => { const f = state.files.find(x => x.id === id); if (!f) throw new Error('fail tiada'); return f; }
     },
     Drive: { Permissions: { create: (res, id, opts) => { state.advancedCalls.push({ id, email: res.emailAddress, opts }); state.folders.find(x => x.id === id).viewers.add(res.emailAddress); } } },
@@ -87,10 +88,20 @@ function create() {
       addViewer(e) { this.viewers.add(e); }, removeViewer(e) { this.viewers.delete(e); },
       getFoldersByName: (nm) => { const m = state.folders.filter(x => x.parent === f && x.name === nm); let i = 0; return { hasNext: () => i < m.length, next: () => m[i++] }; },
       createFolder: (nm) => { const c = mkFolder(nm); c.parent = f; return c; },
-      createFile: (blob) => { const file = { id: 'FILE_' + String(state.files.length).padStart(10, '0'), name: blob.name, blob, parent: f, getId() { return this.id; }, getName() { return this.name; }, getSize() { return this.blob.bytes.length; }, getParents() { let i = 0; const a = [this.parent]; return { hasNext: () => i < a.length, next: () => a[i++] }; } }; state.files.push(file); return file; },
-      getFiles: () => { const m = state.files.filter(x => x.parent === f); let i = 0; return { hasNext: () => i < m.length, next: () => m[i++] }; } };
+      createFile: (blob) => state.mkFile(blob.name, f, blob.bytes),
+      getFiles: () => { const m = state.files.filter(x => x.parent === f && !x.trashed); let i = 0; return { hasNext: () => i < m.length, next: () => m[i++] }; },
+      getFilesByName: (nm) => { const m = state.files.filter(x => x.parent === f && x.name === nm && !x.trashed); let i = 0; return { hasNext: () => i < m.length, next: () => m[i++] }; },
+      getParents: () => { let i = 0; const a = f.parent ? [f.parent] : []; return { hasNext: () => i < a.length, next: () => a[i++] }; },
+      moveTo(dest) { f.parent = dest; return f; } };
     state.folders.push(f); return f;
   }
+  state.myRoot = { id: 'MYROOT', name: 'My Drive', getId() { return 'MYROOT'; }, getOwner: () => ({ getEmail: () => 'Owner@Gmail.com' }) };
+  const mkFile = (name, parent, bytes) => { const file = { id: 'FILE_' + String(state.files.length).padStart(10, '0'), name, parent, bytes, trashed: false, seq: ++state.fileSeq,
+    getId() { return this.id; }, getName() { return this.name; }, getSize() { return this.bytes.length; }, getDateCreated() { return new Date(1763000000000 + this.seq * 60000); },
+    setTrashed(v) { this.trashed = v; }, isTrashed() { return this.trashed; }, getParents() { let i = 0; const a = this.parent ? [this.parent] : []; return { hasNext: () => i < a.length, next: () => a[i++] }; },
+    makeCopy(nm, folder) { return mkFile(nm, folder, this.bytes); } }; state.files.push(file); return file; };
+  state.files.push({ id: 'SHEET1', name: 'DB', parent: state.myRoot, bytes: [1, 2, 3], trashed: false, seq: 0, getId() { return 'SHEET1'; }, getName() { return 'DB'; }, getSize() { return 3; }, getDateCreated() { return new Date(1763000000000); }, setTrashed() {}, isTrashed() { return false; }, getParents() { return { hasNext: () => false }; }, makeCopy(nm, folder) { return mkFile(nm, folder, this.bytes); } });
+  state.mkFile = mkFile;
   sandbox.globalThis = sandbox;
   const ctx = vm.createContext(sandbox);
   const dir = path.join(__dirname, '..', 'apps-script');

@@ -62,7 +62,8 @@ var SETTINGS_SEED = [
   ['backup_folder_id', '', 'Folder backup (diisi setupSystem)'],
   ['meeting_types', '["Mesyuarat Pengurusan","Mesyuarat Jawatankuasa","Lain-lain"]', 'Tidak digunakan lagi (diganti meeting_series)'],
   ['meeting_series', '["Mesyuarat Jawatankuasa Hospital Mesra Ibadah Institut Kanser Negara","Mesyuarat Jawatankuasa Credentialing & Privileging Pengurusan Ibadah Pesakit Institut Kanser Negara","Mesyuarat Pengurusan Kualiti Jawatankuasa Hospital Mesra Ibadah Institut Kanser Negara"]', 'Senarai siri / nama mesyuarat (JSON)'],
-  ['reminder_hours_before', '24', 'Peringatan sebelum mesyuarat (jam)'],
+  ['app_url', '', 'Alamat sistem untuk pautan dalam emel, cth. https://sistem.contoh.my (tetapkan di S-14)'],
+  ['reminder_hours_before', '24', 'Peringatan sebelum mesyuarat (jam; 24 = sehari sebelum)'],
   ['digest_enabled', 'TRUE', 'Digest emel bahan baharu'],
   ['max_upload_mb', '20', 'Had muat naik melalui app (laras selepas ujian Fasa 3)'],
   ['backup_keep', '8', 'Bilangan salinan backup disimpan'],
@@ -158,16 +159,18 @@ function setupSystem() {
   var root = getOrCreateFolder_(settings.root_folder_id.value, 'e-Mesyuarat IKN', null, log);
   setSettingValue_('root_folder_id', root.getId());
   getOrCreateFolder_('', 'Mesyuarat', root, log);
-  var backup = getOrCreateFolder_(settings.backup_folder_id.value, 'Backup', root, log);
+  var backup = ensureBackupFolder_(settings.backup_folder_id.value, root, log);
   setSettingValue_('backup_folder_id', backup.getId());
   invalidateSettings_();
   invalidateUsers_();
 
   // 7. Trigger (idempotent). Hanya pasang jika function wujud; ulang setupSystem() selepas Fasa 6.
+  var AVAILABLE_ = { sendDigest_: typeof sendDigest_ === 'function', sendReminders_: typeof sendReminders_ === 'function',
+    sendOverdueActions_: typeof sendOverdueActions_ === 'function', backupWeekly_: typeof backupWeekly_ === 'function' };
   var existing = ScriptApp.getProjectTriggers();
   TRIGGERS_.forEach(function (t) {
     existing.forEach(function (tr) { if (tr.getHandlerFunction() === t.fn) ScriptApp.deleteTrigger(tr); });
-    if (typeof globalThis[t.fn] !== 'function') { log.skippedTriggers.push(t.fn); return; }
+    if (!AVAILABLE_[t.fn]) { log.skippedTriggers.push(t.fn); return; }
     t.build(ScriptApp.newTrigger(t.fn)).create();
     log.triggers.push(t.fn);
   });
@@ -219,4 +222,30 @@ function setSettingValue_(key, value) {
     var row = readTable_('settings').rows.filter(function (r) { return r.key === key; })[0];
     if (row) updateObject_('settings', row._row, { value: value });
   });
+}
+
+function isChildOf_(folder, parent) {
+  var it = folder.getParents();
+  while (it.hasNext()) if (it.next().getId() === parent.getId()) return true;
+  return false;
+}
+
+/**
+ * Folder Backup memuatkan salinan seluruh pangkalan data (pengguna, audit). Ia mesti BERADA DI LUAR folder akar
+ * (dikongsi kepada Setiausaha). Folder Backup lama di bawah folder akar dialihkan keluar secara automatik.
+ */
+function ensureBackupFolder_(id, root, log) {
+  var f = null;
+  if (id) { try { var c = DriveApp.getFolderById(id); if (!c.isTrashed()) f = c; } catch (e) { /* hilang: cipta semula */ } }
+  if (!f) { f = DriveApp.createFolder('SyuraDocs Backup'); log.folders.push('SyuraDocs Backup'); return f; }
+  if (isChildOf_(f, root)) {
+    try {
+      f.moveTo(DriveApp.getRootFolder());
+      f.setName('SyuraDocs Backup');
+      log.notes.push('Folder Backup dialihkan keluar daripada folder akar supaya Setiausaha tidak boleh membuka salinan pangkalan data.');
+    } catch (e) {
+      log.notes.push('AMARAN: folder Backup masih di bawah folder akar (gagal dialihkan: ' + e + '). Alihkan secara manual ke luar folder "e-Mesyuarat IKN".');
+    }
+  }
+  return f;
 }

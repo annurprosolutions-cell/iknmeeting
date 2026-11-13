@@ -394,3 +394,27 @@ textarea.input { resize: vertical; min-height: 120px; }
 }
 @media (prefers-reduced-motion: reduce) { .live-left, .live-right { transition: none; } }
 @media print { .live-left, .live-right, .live-bar { display: none; } }
+
+/* ---------- Fasa 6: PWA, luar talian, S-14 ---------- */
+.offline-bar { position: fixed; z-index: 29; top: var(--header-h); left: 0; right: 0; display: flex; gap: 8px; align-items: center; padding: 8px 16px; background: var(--warning); color: #fff; font-weight: 600; font-size: 15px; }
+.offline-bar[hidden] { display: none; }
+:root[data-theme="dark"] .offline-bar { color: #0B1220; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .offline-bar { color: #0B1220; } }
+@media (min-width: 640px) { .offline-bar { left: var(--side-w); } }
+.shell.is-live .offline-bar { top: 0; left: 0; }
+.install-banner { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; padding: 12px 16px; margin: 12px 0 16px; border: 1px solid var(--primary); border-radius: 8px; background: var(--tint); }
+.install-banner p { margin: 0; flex: 1 1 240px; }
+.install-actions { display: flex; gap: 8px; }
+.offline-list { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+
+.sys-tabs { margin-bottom: 16px; }
+.stat-row { display: flex; flex-wrap: wrap; gap: 12px; margin: 8px 0 16px; }
+.stat { flex: 1 1 140px; padding: 12px 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+.stat strong { display: block; font-size: 24px; line-height: 1.2; }
+.table .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; overflow-wrap: anywhere; }
+.table .wrap { overflow-wrap: anywhere; max-width: 360px; }
+.settings-form { max-width: 720px; }
+.settings-form textarea { min-height: 140px; }
+.inline-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
+.shell:has(.offline-bar:not([hidden])) .main { padding-top: calc(var(--header-h) + 64px); }
+.shell.is-live:has(.offline-bar:not([hidden])) .main { padding-top: 0; }

@@ -38,7 +38,13 @@ function getRoutes_() {
     'feedback.list':   { fn: apiFeedbackList_ },
     'feedback.add':    { fn: apiFeedbackAdd_ },
     'feedback.update': { fn: apiFeedbackUpdate_ },
-    'feedback.delete': { fn: apiFeedbackDelete_ }
+    'feedback.delete': { fn: apiFeedbackDelete_ },
+    'audit.list':         { fn: apiAuditList_ },
+    'notifications.list': { fn: apiNotificationsList_ },
+    'settings.get':       { fn: apiSettingsGet_ },
+    'settings.set':       { fn: apiSettingsSet_ },
+    'backup.run':         { fn: apiBackupRun_ },
+    'backup.list':        { fn: apiBackupList_ }
   };
 }
 

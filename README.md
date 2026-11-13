@@ -4,7 +4,7 @@ Sistem dokumen mesyuarat tanpa kertas untuk Institut Kanser Negara (dahulu dinam
 
 Sistem mesyuarat tanpa kertas. Frontend static (vanilla HTML/CSS/JS, tiada build) di Cloudflare Pages; backend Google Apps Script; data dalam Google Sheets; fail dalam Google Drive. Rujuk dokumen 01-PRD hingga 06-IPD.
 
-**Status: Fasa 0 hingga 4 siap dibina** (Fasa 3 dalam bentuk "upload sahaja"). Fasa 5 hingga 7 belum bermula.
+**Status: Fasa 0 hingga 4 dan Fasa 6 siap dibina** (Fasa 3 dalam bentuk "upload sahaja"). Fasa 5 (Minit dan Tindakan) ditangguh menunggu keputusan; Fasa 7 (ujian penuh, pilot, serahan) belum bermula.
 
 ## Struktur
 
@@ -13,10 +13,11 @@ index.html, config.js, _headers, favicon.svg
 css/styles.css          token DBD, cerah/gelap, responsif, cetak
 js/                     app, api, auth, router, shell, ui, icons
 js/views/               login (S-01), dashboard (S-02), meetings (S-03), meeting-detail (S-04), meeting-form (S-05),
-                        meeting-agenda (S-06), material-viewer (S-08), meeting-mode (S-09), users (S-13), placeholder
+                        meeting-agenda (S-06), material-viewer (S-08), meeting-mode (S-09), users (S-13), audit (S-14), placeholder
+sw.js, manifest.webmanifest, icons/  PWA; js/pwa.js (banner pasang), js/offline.js (agenda luar talian); tools/make-icons.js
 js/comments-panel.js    S-10 Komen & Cadangan (digunakan dalam S-04, S-08, S-09); js/notes.js nota peribadi (localStorage)
 js/materials-panel.js   S-07 Bahan (dalam tab Bahan S-04); js/upload.js muat naik base64 dengan kemajuan
-apps-script/            Code, Auth, Users, Meetings, Agenda, Materials, Feedback, State, DriveSync, Audit, Setup, Utils, appsscript.json
+apps-script/            Code, Auth, Users, Meetings, Agenda, Materials, Feedback, State, Notify, Settings, Backup, DriveSync, Audit, Setup, Utils, appsscript.json
 tests/                  ujian backend (mock Apps Script) dan smoke test frontend
 ```
 
@@ -51,6 +52,8 @@ node tests/frontend.phase2.js   # S-02 hingga S-05
 node tests/feedback.test.js     # Fasa 4: komen, visibiliti, item semasa, pollState (baca cache sahaja)
 node tests/frontend.phase3.js   # borang baharu, gambar, agenda, bahan, penonton
 node tests/frontend.phase4.js   # Mod Mesyuarat: 3 pelayar serentak, polling, komen, nota, talian terputus
+node tests/notify.test.js       # Fasa 6: emel (jemputan, digest, peringatan, kuota), audit, tetapan, backup
+node tests/frontend.phase6.js   # S-14, PWA (manifest, service worker, luar talian, banner pasang)
 node tests/cors-live.js         # BUKAN mock: panggil Apps Script sebenar (API_URL dalam config.js) melalui kod app
 ```
 
@@ -67,6 +70,38 @@ Ujian ini guna mock untuk Google (GIS dan tokeninfo) dan Apps Script. Ia **tidak
 - [ ] Nyahaktif Ahli: sesi Ahli itu ditolak pada panggilan seterusnya
 - [ ] Tiada ralat CSP dalam Console pelayar semasa login (laras `_headers` jika ada sumber Google disekat)
 - [ ] Tutup tab, buka semula: diminta login; biarkan sesi tamat: login senyap atau kembali ke S-01
+
+## Fasa 6 (versi 0.6.0): Notifikasi emel, Audit, Tetapan, Backup, PWA
+
+**Naik taraf**
+1. Apps Script: tampal `Notify.gs`, `Settings.gs`, `Backup.gs` baharu; ganti `Code.gs`, `Audit.gs`, `Meetings.gs`, `Setup.gs`, `Utils.gs`.
+2. **Run `setupSystem()`** (wajib kali ini). Ia: menambah tetapan `app_url`; memasang trigger **digest (setiap jam)**, **peringatan (harian 08:00)** dan **backup (Ahad 02:00)**; dan **mengalihkan folder Backup keluar daripada folder akar** (lihat bawah). Terima kebenaran jika diminta. Ringkasan akan menyenaraikan "Trigger dipasang" dan nota pengalihan folder.
+3. Deploy **New version** pada deployment yang sama. Push frontend, tunggu Cloudflare, hard refresh.
+4. **Login Admin > Audit & Tetapan > Tetapan**: tekan "Guna alamat semasa" (atau taip alamat https sistem) dan Simpan. Tanpa ini, emel dihantar tanpa pautan.
+
+**Notifikasi emel (F-11)**: hanya tajuk, tarikh/masa dan pautan (tiada kandungan bahan, komen atau Bahan Bicara).
+- **Jemputan**: semasa Terbitkan (jika "Hantar emel jemputan" ditanda) dan kepada ahli yang ditambah selepas terbit.
+- **Digest**: satu emel setiap ahli, maksimum sekali sejam, menyenaraikan bahan baharu selepas terbit. Larian pertama hanya menetapkan garis dasar. Boleh dimatikan dalam Tetapan.
+- **Peringatan**: harian 08:00, sekali bagi setiap ahli. Lalai 24 jam = sehari sebelum ("esok"); mesyuarat hari ini yang belum bermula turut diingatkan.
+- Semua direkod dalam **Log Emel**. Jika kuota harian habis, baki dilangkau dan direkod "Dilangkau" (baki kuota dipaparkan). Kuota Gmail biasa ialah ~100 penerima sehari (anggaran, belum disahkan).
+- Belum ada (menunggu Fasa 5): emel minit untuk semakan/disahkan dan tindakan tertunggak.
+
+**Audit & Tetapan (S-14, Admin sahaja)**: Audit Log (tapis emel, tindakan, tarikh), Log Emel, Tetapan (nama sistem, alamat sistem, nama mesyuarat, peringatan, digest, had muat naik, bilangan backup) dan Backup. Audit log tiada API untuk ubah atau padam.
+
+**Backup**: salinan Sheet ke folder **"SyuraDocs Backup"** (nama `DB-YYYY-MM-DD`, simpan 8 terkini). **Penting (keselamatan)**: folder ini kini berada di Drive pemilik **di luar** folder "e-Mesyuarat IKN", kerana folder akar dikongsi kepada Setiausaha dan salinan memuatkan senarai pengguna dan audit log. Pemasangan lama yang meletakkannya di bawah folder akar diperbetulkan oleh `setupSystem()`. Fail Drive (bahan mesyuarat) tidak disalin oleh sistem: Admin disyorkan menyalin folder "Mesyuarat" secara manual setiap suku tahun.
+
+**PWA (F-13)**: app boleh dipasang (banner pada Dashboard; iOS: arahan Kongsi > Tambah ke Skrin Utama). Service worker menggunakan **rangkaian dahulu**, jadi kod baharu sentiasa diambil bila ada talian; simpanan hanya sandaran. Agenda mesyuarat yang pernah dibuka (tajuk, tarikh, agenda sahaja) disimpan dalam peranti untuk bacaan luar talian dan **dipadam bila log keluar**. Bahan, komen dan kehadiran memerlukan internet. Jika senarai fail dalam `js/` berubah, kemas kini `SHELL` dalam `sw.js` (ujian akan gagal jika ada fail tertinggal).
+
+**Senarai semak pengesahan Fasa 6 (akaun sebenar)**
+- [ ] `setupSystem()`: ringkasan menyebut trigger dipasang dan Folder Backup dialihkan; dalam Drive, "SyuraDocs Backup" berada di My Drive (bukan di bawah "e-Mesyuarat IKN")
+- [ ] Tetapan > Alamat sistem disimpan (https)
+- [ ] Terbitkan mesyuarat: setiap ahli menerima satu emel jemputan dengan pautan yang membuka mesyuarat itu; Log Emel menunjukkan "Dihantar"
+- [ ] Muat naik 2 bahan selepas terbit; selepas satu jam (atau run `sendDigest_` dua kali dari editor), setiap ahli menerima SATU emel digest
+- [ ] Run `sendReminders_` dari editor untuk mesyuarat esok: ahli menerima peringatan; run semula tidak menghantar lagi
+- [ ] Bahan Bicara tidak disebut dalam mana-mana emel
+- [ ] Backup sekarang: salinan muncul; run 9 kali: hanya 8 kekal
+- [ ] Ahli biasa dan Setiausaha tidak boleh membuka Audit & Tetapan; Setiausaha tidak boleh membuka folder "SyuraDocs Backup"
+- [ ] Pasang app pada telefon dan komputer; matikan internet selepas buka agenda: agenda masih boleh dibaca dan bar luar talian muncul
 
 ## Fasa 4 (versi 0.5.0): Mod Mesyuarat, Komen & Cadangan, Nota Saya
 

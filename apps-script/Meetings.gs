@@ -172,6 +172,7 @@ function syncMembersRows_(meeting, emails, actorEmail) {
 
 function applyDriveDiff_(meeting, diff) {
   if (STATUS_WITH_FOLDER_ACCESS_.indexOf(meeting.status) === -1) return [];
+  if (meeting.status !== 'Selesai') inviteAddedMembers_(meeting, diff.added);
   var failed = driveShareMany_(meeting.drive_folder_id, diff.added.filter(isActiveUser_));
   diff.removed.forEach(function (e) { driveUnshare_(meeting.drive_folder_id, e); });
   return failed;
@@ -320,10 +321,11 @@ function apiMeetingsPublish_(session, data) {
   });
   touchState_(m.id);
   moveRestrictedAccess_(m, '', m.pengerusi_email);
-  if (m.notify_on_publish === 'TRUE' && typeof globalThis.notifyInvite_ === 'function') {
-    try { globalThis.notifyInvite_(m.id); } catch (e) { Logger.log('notifyInvite_ gagal: ' + e); }
+  var invite = null;
+  if (m.notify_on_publish === 'TRUE') {
+    try { invite = notifyInvite_(m.id); } catch (e) { Logger.log('notifyInvite_ gagal: ' + e); }
   }
-  return { id: m.id, status: 'Dijadualkan', driveFailures: failed };
+  return { id: m.id, status: 'Dijadualkan', driveFailures: failed, invite: invite };
 }
 
 function apiMeetingsCancel_(session, data) {

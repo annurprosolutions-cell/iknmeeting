@@ -20,7 +20,8 @@ t('setupSystem cipta 11 tab + seed', () => {
   assert.deepStrictEqual(Array.from(state.sheets.users.validations[4].list), ['Admin', 'Setiausaha', 'Pengerusi', 'Ahli']);
 });
 t('setupSystem cipta folder root, Mesyuarat, Backup & simpan ID', () => {
-  assert.deepStrictEqual(state.folders.map(f => f.name), ['e-Mesyuarat IKN', 'Mesyuarat', 'Backup']);
+  assert.deepStrictEqual(state.folders.map(f => f.name), ['e-Mesyuarat IKN', 'Mesyuarat', 'SyuraDocs Backup']);
+  const bf = state.folders.find(f => f.name === 'SyuraDocs Backup'); assert.ok(!bf.parent, 'Backup di luar folder akar (tidak diwarisi Setiausaha)');
   const s = run("getSettings_()");
   assert.ok(s.root_folder_id && s.backup_folder_id);
 });
@@ -30,7 +31,10 @@ t('setupSystem idempotent (run kali 2 tiada pendua)', () => {
   assert.strictEqual(JSON.stringify([state.sheets.users.data, state.sheets.settings.data]), before);
   assert.strictEqual(state.folders.length, 3);
 });
-t('trigger dilangkau bila function belum wujud (Fasa 6)', () => assert.strictEqual(state.triggers.length, 0));
+t('trigger dipasang untuk function yang wujud (digest, peringatan, backup); tindakan tertunggak dilangkau; idempotent', () => {
+  assert.deepStrictEqual(state.triggers.map(x => x.fn).sort(), ['backupWeekly_', 'sendDigest_', 'sendReminders_']);
+  run('setupSystem()'); assert.strictEqual(state.triggers.length, 3, 'tiada pendua selepas run semula');
+});
 t('setupSystem tolak ADMIN_EMAIL placeholder', () => {
   const h2 = create(); assert.throws(() => h2.run('setupSystem()'), /ADMIN_EMAIL/);
 });

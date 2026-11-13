@@ -1,0 +1,18 @@
+{
+  "id": "./",
+  "name": "SyuraDocs",
+  "short_name": "SyuraDocs",
+  "description": "Dokumen mesyuarat tanpa kertas untuk Institut Kanser Negara",
+  "lang": "ms",
+  "start_url": "./#/dashboard",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#F5F7FA",
+  "theme_color": "#0F4C81",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

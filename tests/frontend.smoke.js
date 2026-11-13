@@ -59,10 +59,10 @@ function handle(body) {
   let n = 0; const ok = (m) => console.log('  ok  ' + m);
 
   async function newPage(opts = {}) {
-    const ctx = await browser.newContext({ viewport: opts.viewport || { width: 1280, height: 800 }, colorScheme: opts.scheme || 'light', deviceScaleFactor: 1 });
+    const ctx = await browser.newContext({ serviceWorkers: 'block', viewport: opts.viewport || { width: 1280, height: 800 }, colorScheme: opts.scheme || 'light', deviceScaleFactor: 1 });
     const page = await ctx.newPage();
     const problems = [];
-    page.on('console', (m) => { if (['error', 'warning'].includes(m.type()) && !/Failed to load resource/.test(m.text())) problems.push(m.text()); });
+    page.on('console', (m) => { if (['error', 'warning'].includes(m.type()) && !/Failed to load resource|Service Worker registration blocked by Playwright/.test(m.text())) problems.push(m.text()); });
     page.on('pageerror', (e) => problems.push('pageerror: ' + e.message));
     await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: `export const API_URL='${API}'; export const GOOGLE_CLIENT_ID='client.apps.googleusercontent.com';` }));
     await page.route('https://accounts.google.com/gsi/client', (r) => r.fulfill({ contentType: 'text/javascript', body: GIS }));

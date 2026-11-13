@@ -68,10 +68,13 @@ export function buildShell(user, { onLogout }) {
   const bottom = h('nav', { class: 'bottombar', 'aria-label': 'Menu utama (telefon)' }, bottomItems.map((n) => link(n, 'nav-link bottom-link')), more);
   bottom.style.gridTemplateColumns = `repeat(${bottomItems.length + 1}, 1fr)`;
 
+  const offlineBar = h('div', { class: 'offline-bar', role: 'status', hidden: navigator.onLine !== false }, icon('wifiOff', 18), h('span', { text: 'Anda luar talian. Fail bahan memerlukan internet; agenda yang pernah dibuka masih boleh dibaca.' }));
+  window.addEventListener('offline', () => { offlineBar.hidden = false; });
+  window.addEventListener('online', () => { offlineBar.hidden = true; });
   const main = h('main', { id: 'main', class: 'main', tabindex: '-1' });
   const root = h('div', { class: 'shell' },
     h('a', { class: 'skip-link', href: '#main', onClick: (e) => { e.preventDefault(); main.focus(); } }, 'Langkau ke kandungan'),
-    header, side, main, bottom);
+    header, offlineBar, side, main, bottom);
 
   function setActive(path) {
     // Padanan terpanjang supaya /meetings/new tidak menyalakan /meetings

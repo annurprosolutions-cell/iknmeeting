@@ -3,6 +3,7 @@ import * as auth from './auth.js';
 import * as router from './router.js';
 import { buildShell } from './shell.js';
 import { h, clear, toast, getThemeMode, setThemeMode, errorBanner } from './ui.js';
+import { initPwa } from './pwa.js';
 
 const ALL = ['Admin', 'Setiausaha', 'Pengerusi', 'Ahli'];
 const ADMIN = ['Admin'];
@@ -13,6 +14,7 @@ const app = document.getElementById('app');
 let shell = null, cleanup = null, renderSeq = 0;
 
 setThemeMode(getThemeMode());
+initPwa();
 
 router.define('/login', { public: true, view: () => import('./views/login.js') });
 router.define('/dashboard', { roles: ALL, view: () => import('./views/dashboard.js'), meta: ph('Dashboard') });
@@ -25,7 +27,7 @@ router.define('/meetings/:id/materials/:mid', { roles: ALL, view: () => import('
 router.define('/meetings/:id', { roles: ALL, view: () => import('./views/meeting-detail.js'), meta: ph('Butiran Mesyuarat') });
 router.define('/actions', { roles: STAFF, view: () => import('./views/placeholder.js'), meta: ph('Tindakan Saya', 'Fasa 5') });
 router.define('/users', { roles: ADMIN, view: () => import('./views/users.js'), meta: ph('Pengurusan Pengguna') });
-router.define('/audit', { roles: ADMIN, view: () => import('./views/placeholder.js'), meta: ph('Audit Log & Tetapan', 'Fasa 6') });
+router.define('/audit', { roles: ADMIN, view: () => import('./views/audit.js'), meta: ph('Audit & Tetapan') });
 
 function setTitle(t) { document.title = (t ? t + ' - ' : '') + auth.getSettings().app_name; }
 

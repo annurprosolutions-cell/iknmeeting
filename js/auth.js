@@ -1,6 +1,7 @@
 // Sign in with Google (GIS) + sesi. Token sesi dalam sessionStorage (hilang bila tab ditutup).
 import { GOOGLE_CLIENT_ID } from '../config.js';
 import { api, configureApi } from './api.js';
+import { clearOffline } from './offline.js';
 
 const K_TOKEN = 'emi_token', K_USER = 'emi_user', K_SET = 'emi_settings';
 let user = null, settings = { app_name: 'SyuraDocs', meeting_types: [] };
@@ -128,4 +129,12 @@ export async function logout() {
   try { await api('auth.logout', {}, { retried: true }); } catch (e) { /* teruskan */ }
   try { if (window.google && window.google.accounts) window.google.accounts.id.disableAutoSelect(); } catch (e) { /* abaikan */ }
   clearSession();
+  clearOffline(); // salinan agenda luar talian dipadam bila log keluar (peranti kongsi)
+}
+
+/** Muat semula tetapan awam (nama sistem, senarai mesyuarat, had muat naik) selepas Admin mengubahnya. */
+export async function refreshSettings() {
+  const d = await api('me.get');
+  setSession(null, d.user, d.settings);
+  return settings;
 }

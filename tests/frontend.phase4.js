@@ -64,10 +64,10 @@ function handle(b) {
   const ok = (m) => console.log('  ok  ' + m);
   const pages = [];
   async function newPage(who, vp) {
-    const ctx = await browser.newContext({ viewport: vp || { width: 1280, height: 860 } });
+    const ctx = await browser.newContext({ serviceWorkers: 'block', viewport: vp || { width: 1280, height: 860 } });
     await ctx.addInitScript(() => { window.__EMI_POLL_MS = 600; window.__wl = 0; Object.defineProperty(navigator, 'wakeLock', { configurable: true, value: { request: async () => { window.__wl++; return { release() { window.__wlReleased = true; }, addEventListener() {} }; } } }); });
     const page = await ctx.newPage(); const problems = []; page.__offline = false;
-    page.on('console', (m) => { if (['error', 'warning'].includes(m.type()) && !/Failed to load resource|net::ERR_FAILED/.test(m.text())) problems.push(m.text()); });
+    page.on('console', (m) => { if (['error', 'warning'].includes(m.type()) && !/Failed to load resource|net::ERR_FAILED|Service Worker registration blocked by Playwright/.test(m.text())) problems.push(m.text()); });
     page.on('pageerror', (e) => problems.push('pageerror: ' + e.message));
     await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: `export const API_URL='${API}'; export const GOOGLE_CLIENT_ID='c.apps.googleusercontent.com';` }));
     await page.route('https://accounts.google.com/gsi/client', (r) => r.fulfill({ contentType: 'text/javascript', body: GIS }));

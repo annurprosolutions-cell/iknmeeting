@@ -62,9 +62,9 @@ function handle(b) {
   const shots = path.join(__dirname, 'shots'); fs.mkdirSync(shots, { recursive: true });
   const ok = (m) => console.log('  ok  ' + m);
   async function newPage(vp) {
-    const ctx = await browser.newContext({ viewport: vp || { width: 1280, height: 900 } });
+    const ctx = await browser.newContext({ serviceWorkers: 'block', viewport: vp || { width: 1280, height: 900 } });
     const page = await ctx.newPage(); const problems = [];
-    page.on('console', (m) => { if (['error', 'warning'].includes(m.type()) && !/Failed to load resource/.test(m.text())) problems.push(m.text()); });
+    page.on('console', (m) => { if (['error', 'warning'].includes(m.type()) && !/Failed to load resource|Service Worker registration blocked by Playwright/.test(m.text())) problems.push(m.text()); });
     page.on('pageerror', (e) => problems.push('pageerror: ' + e.message));
     await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: `export const API_URL='${API}'; export const GOOGLE_CLIENT_ID='c.apps.googleusercontent.com';` }));
     await page.route('https://accounts.google.com/gsi/client', (r) => r.fulfill({ contentType: 'text/javascript', body: GIS }));

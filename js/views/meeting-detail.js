@@ -2,6 +2,7 @@
 import { h, clear, button, busy, badge, toast, confirmDialog, emptyState, errorBanner, skeletonRows, meetingStatusBadge, attendanceBadge, fmtDate, fmtDateTime, weekday, fmtTimeRange, avatar } from '../ui.js';
 import { materialsPanel } from '../materials-panel.js';
 import { commentsPanel } from '../comments-panel.js';
+import { saveMeeting, loadMeeting } from '../offline.js';
 import { icon } from '../icons.js';
 import { api } from '../api.js';
 
@@ -29,8 +30,10 @@ export function render(container, { user, params }) {
 
   async function load() {
     clear(host).append(skeletonRows(4));
-    try { m = await api('meetings.get', { id: params.id }); }
+    try { m = await api('meetings.get', { id: params.id }); saveMeeting(user.email, m); }
     catch (e) {
+      const cached = e.code === 0 ? loadMeeting(user.email, params.id) : null;
+      if (cached) { drawOffline(cached); return; }
       const forbidden = e.code === 403 || e.code === 404;
       clear(host).append(h('h1', { text: 'Butiran Mesyuarat' }),
         forbidden ? h('section', { class: 'card' }, emptyState(e.code === 403 ? 'Anda tidak dijemput ke mesyuarat ini' : 'Mesyuarat tidak dijumpai'), h('p', { class: 'center' }, h('a', { href: '#/meetings', text: 'Kembali ke senarai mesyuarat' })))
@@ -38,6 +41,22 @@ export function render(container, { user, params }) {
       return;
     }
     draw();
+  }
+
+  // F-13: salinan agenda terakhir bila tiada talian (tajuk, tarikh, agenda sahaja)
+  function drawOffline(c) {
+    const when = c.saved_at ? new Date(c.saved_at).toLocaleString('ms-MY', { timeZone: 'Asia/Kuala_Lumpur', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : '';
+    clear(host).append(
+      h('p', { class: 'back' }, h('a', { href: '#/meetings' }, icon('prev', 16), ' Semua mesyuarat')),
+      h('div', { class: 'banner banner-danger', role: 'status' }, icon('wifiOff', 20), h('span', { text: `Luar talian. Memaparkan salinan agenda terakhir (${when}). Bahan, komen dan kehadiran memerlukan internet.` }), button('Cuba semula', { kind: 'secondary', onClick: load })),
+      h('section', { class: 'card detail-head' }, h('p', { class: 'small muted', text: c.bil ? `Bil.${c.bil}/${c.tahun}` : '' }), h('h1', { text: c.title }),
+        h('dl', { class: 'meta' }, h('div', { class: 'meta-row' }, h('dt', { text: 'Tarikh' }), h('dd', { text: `${weekday(c.date)}, ${fmtDate(c.date)}` })),
+          h('div', { class: 'meta-row' }, h('dt', { text: 'Masa' }), h('dd', { text: fmtTimeRange(c.start_time, c.end_time) })),
+          c.venue ? h('div', { class: 'meta-row' }, h('dt', { text: 'Lokasi' }), h('dd', { text: c.venue })) : null)),
+      h('section', { class: 'card tabpanel' }, h('h2', { text: 'Agenda' }), c.agenda.length ? h('ol', { class: 'agenda-list' }, c.agenda.map((a) => h('li', { class: 'agenda-item' },
+        h('span', { class: 'agenda-seq', text: String(a.seq) }),
+        h('div', { class: 'agenda-body' }, h('p', { class: 'agenda-title', text: a.title }), a.description ? h('p', { class: 'muted small', text: a.description }) : null,
+          h('div', { class: 'agenda-meta' }, badge(a.category, CAT_KIND[a.category] || 'muted'), a.presenter_name ? h('span', { class: 'small muted', text: 'Pembentang: ' + a.presenter_name }) : null, a.duration_min ? h('span', { class: 'small muted', text: a.duration_min + ' min' }) : null))))) : emptyState('Agenda belum disediakan')));
   }
 
   const canEdit = () => staff && m.status !== 'Dibatalkan' && (m.status !== 'Selesai' || user.role === 'Admin');
