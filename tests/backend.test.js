@@ -36,7 +36,7 @@ t('trigger dipasang untuk function yang wujud (digest, peringatan, backup); tind
   run('setupSystem()'); assert.strictEqual(state.triggers.length, 3, 'tiada pendua selepas run semula');
 });
 t('setupSystem tolak ADMIN_EMAIL placeholder', () => {
-  const h2 = create(); assert.throws(() => h2.run('setupSystem()'), /ADMIN_EMAIL/);
+  const h2 = create(); h2.run("ADMIN_EMAIL = 'GANTI_DENGAN_EMEL_ANDA@gmail.com'"); assert.throws(() => h2.run('setupSystem()'), /ADMIN_EMAIL/);
 });
 
 // ----- Ping, tanpa token -----
