@@ -16,11 +16,19 @@ function feedbackRows_(meetingId) {
 /** Komen boleh ditambah semasa Dijadualkan dan Sedang Berlangsung sahaja. */
 function commentsOpen_(m) { return m.status === 'Dijadualkan' || m.status === 'Sedang Berlangsung'; }
 
-/** Penulis boleh edit/padam komen sendiri sehingga mesyuarat Selesai (BSD). */
+/** Penulis boleh edit/padam komen sendiri sehingga mesyuarat Selesai (BSD). Komen pada Minit: sehingga minit Disahkan. */
 function authorWindowOpen_(m) { return m.status === 'Draf' || commentsOpen_(m); }
+
+function minuteById_(id) { return readTable_('minutes').rows.filter(function (r) { return r.id === id; })[0]; }
+
+function feedbackWindowOpen_(m, fb) {
+  if (fb.target_type === 'Minit') { var mn = minuteById_(fb.target_id); return Boolean(mn) && mn.status !== 'Disahkan'; }
+  return authorWindowOpen_(m);
+}
 
 function canSeeFeedback_(session, m, fb) {
   if (isStaff_(session)) return true;
+  if (fb.target_type === 'Minit') return isChair_(session, m) || sameEmail_(fb.author_email, session.email); // semakan minit: staf, Pengerusi dan penulis sahaja
   if (fb.visibility === 'Semua') return true;
   return sameEmail_(fb.author_email, session.email) || isChair_(session, m);
 }
@@ -39,7 +47,7 @@ function shapeFeedback_(session, m, fb, byEmail, photos) {
     id: fb.id, target_type: fb.target_type, target_id: fb.target_id, kind: fb.kind, content: fb.content, visibility: fb.visibility,
     author_email: fb.author_email, author_name: u.name || fb.author_email, author_position: u.position || '', photo: photos[key] || '',
     created_at: fb.created_at, updated_at: fb.updated_at, edited: fb.updated_at !== fb.created_at, mine: mine,
-    can_edit: mine && authorWindowOpen_(m), can_delete: (mine && authorWindowOpen_(m)) || isStaff_(session)
+    can_edit: mine && feedbackWindowOpen_(m, fb), can_delete: (mine && feedbackWindowOpen_(m, fb)) || isStaff_(session)
   };
 }
 
@@ -56,13 +64,19 @@ function apiFeedbackList_(session, data) {
     if (data.target_id && r.target_id !== data.target_id) return false;
     return true;
   }).sort(function (a, b) { return a.created_at < b.created_at ? -1 : (a.created_at > b.created_at ? 1 : 0); });
-  return { feedback: rows.map(function (r) { return shapeFeedback_(session, m, r, byEmail, photos); }), can_comment: commentsOpen_(m), fbrev: getState_(m.id).fbrev };
+  var canComment = commentsOpen_(m);
+  if (data.target_type === 'Minit') { var cm = currentMinute_(m.id); canComment = Boolean(cm) && cm.status === 'Untuk Semakan' && (isStaff_(session) || isChair_(session, m)); }
+  return { feedback: rows.map(function (r) { return shapeFeedback_(session, m, r, byEmail, photos); }), can_comment: canComment, fbrev: getState_(m.id).fbrev };
 }
 
 /** Sasaran mesti wujud dalam mesyuarat itu dan boleh dilihat oleh penulis. */
 function validateFeedbackTarget_(session, m, type, id) {
   if (type === 'Mesyuarat') return m.id;
-  if (type === 'Minit') throw new ApiError(400, 'Komen pada minit belum tersedia.');
+  if (type === 'Minit') {
+    var mn = minuteById_(id);
+    if (!mn || mn.meeting_id !== m.id || !(isStaff_(session) || isChair_(session, m)) || mn.status === 'Draf') throw new ApiError(404, 'Minit tidak dijumpai atau belum dihantar untuk semakan.');
+    return id;
+  }
   if (type === 'Agenda') { getAgendaRow_(id, m.id); return id; }
   if (type === 'Bahan') {
     var mat = readTable_('materials').rows.filter(function (r) { return r.id === id && r.meeting_id === m.id; })[0];
@@ -82,9 +96,10 @@ function cleanFeedbackContent_(v) {
 function apiFeedbackAdd_(session, data) {
   data = data || {};
   var m = requireMeetingAccess_(session, data.meeting_id);
-  if (!commentsOpen_(m)) throw new ApiError(409, 'Komen hanya boleh ditambah semasa mesyuarat Dijadualkan atau Sedang Berlangsung.');
   var type = cleanEnum_(data.target_type || 'Mesyuarat', FEEDBACK_TARGETS_, 'Sasaran');
+  if (type !== 'Minit' && !commentsOpen_(m)) throw new ApiError(409, 'Komen hanya boleh ditambah semasa mesyuarat Dijadualkan atau Sedang Berlangsung.');
   var targetId = validateFeedbackTarget_(session, m, type, String(data.target_id || ''));
+  if (type === 'Minit' && minuteById_(targetId).status !== 'Untuk Semakan') throw new ApiError(409, 'Komen pada minit hanya dibuka semasa Untuk Semakan.');
   var kind = cleanEnum_(data.kind || 'Komen', FEEDBACK_KINDS_, 'Jenis');
   var vis = cleanEnum_(data.visibility || 'Semua', FEEDBACK_VIS_, 'Visibiliti');
   var content = cleanFeedbackContent_(data.content);
@@ -111,7 +126,7 @@ function apiFeedbackUpdate_(session, data) {
   var fb = getFeedbackRow_(data.id);
   var m = requireMeetingAccess_(session, fb.meeting_id);
   if (!sameEmail_(fb.author_email, session.email)) throw new ApiError(403, 'Anda hanya boleh menyunting komen anda sendiri.');
-  if (!authorWindowOpen_(m)) throw new ApiError(409, 'Komen tidak boleh disunting selepas mesyuarat Selesai.');
+  if (!feedbackWindowOpen_(m, fb)) throw new ApiError(409, fb.target_type === 'Minit' ? 'Komen tidak boleh disunting selepas minit Disahkan.' : 'Komen tidak boleh disunting selepas mesyuarat Selesai.');
   var patch = { updated_at: nowIso_() };
   if (data.content !== undefined) patch.content = cleanFeedbackContent_(data.content);
   if (data.kind !== undefined) patch.kind = cleanEnum_(data.kind, FEEDBACK_KINDS_, 'Jenis');
@@ -126,7 +141,7 @@ function apiFeedbackDelete_(session, data) {
   var fb = getFeedbackRow_(data && data.id);
   var m = requireMeetingAccess_(session, fb.meeting_id);
   var own = sameEmail_(fb.author_email, session.email);
-  if (own && !isStaff_(session) && !authorWindowOpen_(m)) throw new ApiError(409, 'Komen tidak boleh dipadam selepas mesyuarat Selesai.');
+  if (own && !isStaff_(session) && !feedbackWindowOpen_(m, fb)) throw new ApiError(409, 'Komen tidak boleh dipadam selepas mesyuarat Selesai atau minit Disahkan.');
   if (!own && !isStaff_(session)) throw new ApiError(403, 'Anda hanya boleh memadam komen anda sendiri.');
   withLock_(function () {
     updateObject_('feedback', getFeedbackRow_(fb.id)._row, { deleted: 'TRUE', updated_at: nowIso_() });

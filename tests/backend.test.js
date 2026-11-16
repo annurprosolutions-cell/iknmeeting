@@ -31,9 +31,9 @@ t('setupSystem idempotent (run kali 2 tiada pendua)', () => {
   assert.strictEqual(JSON.stringify([state.sheets.users.data, state.sheets.settings.data]), before);
   assert.strictEqual(state.folders.length, 3);
 });
-t('trigger dipasang untuk function yang wujud (digest, peringatan, backup); tindakan tertunggak dilangkau; idempotent', () => {
-  assert.deepStrictEqual(state.triggers.map(x => x.fn).sort(), ['backupWeekly_', 'sendDigest_', 'sendReminders_']);
-  run('setupSystem()'); assert.strictEqual(state.triggers.length, 3, 'tiada pendua selepas run semula');
+t('trigger dipasang untuk function yang wujud (digest, peringatan, backup, tindakan tertunggak); idempotent', () => {
+  assert.deepStrictEqual(state.triggers.map(x => x.fn).sort(), ['backupWeekly_', 'sendDigest_', 'sendOverdueActions_', 'sendReminders_']);
+  run('setupSystem()'); assert.strictEqual(state.triggers.length, 4, 'tiada pendua selepas run semula');
 });
 t('setupSystem tolak ADMIN_EMAIL placeholder', () => {
   const h2 = create(); h2.run("ADMIN_EMAIL = 'GANTI_DENGAN_EMEL_ANDA@gmail.com'"); assert.throws(() => h2.run('setupSystem()'), /ADMIN_EMAIL/);

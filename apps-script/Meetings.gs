@@ -223,6 +223,10 @@ function apiMeetingsGet_(session, data) {
         presenter_email: r.presenter_email, presenter_name: p ? p.name : '', duration_min: r.duration_min ? Number(r.duration_min) : null, status: r.status };
     });
   o.materials = listMaterialsFor_(session, m, byEmail);
+  // Fasa 5 (dilindungi: jika Actions.gs / Minutes.gs belum ditampal, meetings.get tetap berfungsi)
+  o.carry_over = typeof carryOverFor_ === 'function' ? carryOverFor_(session, m) : [];
+  o.my_action_count = typeof myActionCount_ === 'function' ? myActionCount_(session, m.id) : 0;
+  if (typeof currentMinute_ === 'function') { var cmin = currentMinute_(m.id); o.minute_status = cmin && minuteVisible_(session, m, cmin) ? cmin.status : null; } else o.minute_status = null;
   if (m.prev_meeting_id) {
     var prev = readTable_('meetings').rows.filter(function (x) { return x.id === m.prev_meeting_id; })[0];
     if (prev) o.prev_meeting = { id: prev.id, title: prev.title, date: prev.date };

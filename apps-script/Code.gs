@@ -49,7 +49,17 @@ function getRoutes_() {
     'settings.get': { file: 'Settings.gs', ok: typeof apiSettingsGet_ === 'function', fn: function (s, d, t) { return apiSettingsGet_(s, d, t); } },
     'settings.set': { file: 'Settings.gs', ok: typeof apiSettingsSet_ === 'function', fn: function (s, d, t) { return apiSettingsSet_(s, d, t); } },
     'backup.run': { file: 'Backup.gs', ok: typeof apiBackupRun_ === 'function', fn: function (s, d, t) { return apiBackupRun_(s, d, t); } },
-    'backup.list': { file: 'Backup.gs', ok: typeof apiBackupList_ === 'function', fn: function (s, d, t) { return apiBackupList_(s, d, t); } }
+    'backup.list': { file: 'Backup.gs', ok: typeof apiBackupList_ === 'function', fn: function (s, d, t) { return apiBackupList_(s, d, t); } },
+    'minutes.get': { file: 'Minutes.gs', ok: typeof apiMinutesGet_ === 'function', fn: function (s, d, t) { return apiMinutesGet_(s, d, t); } },
+    'minutes.save': { file: 'Minutes.gs', ok: typeof apiMinutesSave_ === 'function', fn: function (s, d, t) { return apiMinutesSave_(s, d, t); } },
+    'minutes.submit': { file: 'Minutes.gs', ok: typeof apiMinutesSubmit_ === 'function', fn: function (s, d, t) { return apiMinutesSubmit_(s, d, t); } },
+    'minutes.withdraw': { file: 'Minutes.gs', ok: typeof apiMinutesWithdraw_ === 'function', fn: function (s, d, t) { return apiMinutesWithdraw_(s, d, t); } },
+    'minutes.approve': { file: 'Minutes.gs', ok: typeof apiMinutesApprove_ === 'function', fn: function (s, d, t) { return apiMinutesApprove_(s, d, t); } },
+    'minutes.reopen': { file: 'Minutes.gs', ok: typeof apiMinutesReopen_ === 'function', fn: function (s, d, t) { return apiMinutesReopen_(s, d, t); } },
+    'minutes.attach': { file: 'Minutes.gs', ok: typeof apiMinutesAttach_ === 'function', fn: function (s, d, t) { return apiMinutesAttach_(s, d, t); } },
+    'actions.list': { file: 'Actions.gs', ok: typeof apiActionsList_ === 'function', fn: function (s, d, t) { return apiActionsList_(s, d, t); } },
+    'actions.save': { file: 'Actions.gs', ok: typeof apiActionsSave_ === 'function', fn: function (s, d, t) { return apiActionsSave_(s, d, t); } },
+    'actions.updateStatus': { file: 'Actions.gs', ok: typeof apiActionsUpdateStatus_ === 'function', fn: function (s, d, t) { return apiActionsUpdateStatus_(s, d, t); } }
   };
 }
 

@@ -142,3 +142,40 @@ function sendReminders_() {
   });
   return items.length ? sendMailBatch_(items) : { sent: 0, failed: 0, skipped: 0 };
 }
+
+/** Minit dihantar untuk semakan: emel kepada Pengerusi mesyuarat itu sahaja. */
+function notifyMinuteReview_(m, min) {
+  var to = looseEmail_(m.pengerusi_email);
+  if (!to || !isActiveUser_(to)) return { sent: 0, failed: 0, skipped: 0 };
+  var label = meetingLabel_(m);
+  return sendMailBatch_([{ to: to, type: 'minute_review', meeting_id: m.id, subject: 'Minit untuk semakan: ' + label,
+    body: 'Salam sejahtera,\n\nMinit mesyuarat berikut telah dihantar untuk semakan dan pengesahan anda:\n\n' + label + '\n' + linkLine_(meetingLink_(m.id)) +
+      '\n\nBuka tab Minit untuk membaca, menulis komen jika perlu pindaan, atau mengesahkan minit.' + MAIL_FOOTER_ }]);
+}
+
+/** Minit disahkan: emel kepada ahli mesyuarat dan penyedia minit (sekali). */
+function notifyMinuteApproved_(m, min) {
+  var seen = {}, emails = activeMemberEmails_(m.id);
+  var prep = looseEmail_(min.prepared_by); if (prep && isActiveUser_(prep) && emails.indexOf(prep) === -1) emails.push(prep);
+  var label = meetingLabel_(m);
+  var body = 'Salam sejahtera,\n\nMinit mesyuarat berikut telah disahkan:\n\n' + label + '\n' + linkLine_(meetingLink_(m.id)) + '\n\nBuka tab Minit untuk membaca atau mencetak minit.' + MAIL_FOOTER_;
+  return sendMailBatch_(emails.filter(function (e) { if (seen[e]) return false; seen[e] = true; return true; }).map(function (e) { return { to: e, type: 'minute_approved', meeting_id: m.id, subject: 'Minit disahkan: ' + label, body: body }; }));
+}
+
+/** Trigger mingguan (Isnin 08:30): satu emel setiap pemilik tindakan tertunggak (tajuk, mesyuarat, tarikh akhir, pautan). */
+function sendOverdueActions_() {
+  var meetings = meetingsById_(), perOwner = {};
+  readTable_('action_items').rows.forEach(function (a) {
+    var m = meetings[a.meeting_id];
+    if (!isOverdue_(a) || !m || m.status === 'Dibatalkan') return;
+    var e = looseEmail_(a.owner_email);
+    if (e && isActiveUser_(e)) (perOwner[e] = perOwner[e] || []).push({ a: a, m: m });
+  });
+  var url = appUrl_() ? appUrl_() + '/#/actions' : '';
+  var items = Object.keys(perOwner).map(function (e) {
+    var lines = perOwner[e].map(function (x) { return '  - ' + x.a.title + ' (' + meetingLabel_(x.m) + ', tarikh akhir ' + ddmmyyyy_(x.a.due_date) + ')'; }).join('\n');
+    return { to: e, type: 'action_overdue', meeting_id: '', subject: 'Tindakan tertunggak (' + perOwner[e].length + ')',
+      body: 'Salam sejahtera,\n\nTindakan berikut telah melepasi tarikh akhir:\n\n' + lines + '\n' + (url ? '\nBuka sistem: ' + url : '\nBuka SyuraDocs dan pilih Tindakan.') + '\n\nSila kemas kini status dan maklum balas.' + MAIL_FOOTER_ };
+  });
+  return items.length ? sendMailBatch_(items) : { sent: 0, failed: 0, skipped: 0 };
+}

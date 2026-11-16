@@ -49,7 +49,7 @@ t('validasi: kandungan kosong/terlalu panjang, jenis, visibiliti, sasaran', () =
   assert.strictEqual(add(A1, { content: '   ' }).error.code, 400); assert.strictEqual(add(A1, { content: 'x'.repeat(3001) }).error.code, 400); assert.ok(add(A1, { content: 'x'.repeat(3000) }).ok);
   assert.strictEqual(add(A1, { kind: 'Ugutan' }).error.code, 400); assert.strictEqual(add(A1, { visibility: 'Rahsia' }).error.code, 400);
   assert.strictEqual(add(A1, { target_type: 'Agenda', target_id: 'AGD-tiadatiada' }).error.code, 404);
-  assert.strictEqual(add(A1, { target_type: 'Minit', target_id: 'MIN-x' }).error.code, 400); assert.strictEqual(add(A1, { target_type: 'Lain' }).error.code, 400);
+  assert.strictEqual(add(A1, { target_type: 'Minit', target_id: 'MIN-x' }).error.code, 404); assert.strictEqual(add(A1, { target_type: 'Lain' }).error.code, 400);
 });
 t('sasaran dalam mesyuarat LAIN ditolak (ubah target_id)', () => {
   const O = mk('Lain'); call('agenda.save', { meeting_id: O, title: 'Item Lain' }, S); const oid = get(O).agenda[0].id;
