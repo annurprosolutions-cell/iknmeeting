@@ -37,7 +37,7 @@ export function buildShell(user, { onLogout }) {
   const link = (n, cls) => h('a', { class: cls, href: '#' + n.path, 'data-path': n.path, 'aria-label': n.label }, icon(n.icon, 20), h('span', { text: cls.includes('bottom') && n.short ? n.short : n.label }));
 
   // Menu pengguna (header)
-  const menuBtn = h('button', { class: 'user-btn', type: 'button', 'aria-haspopup': 'true', 'aria-expanded': 'false' },
+  const menuBtn = h('button', { class: 'user-btn', type: 'button', 'aria-label': 'Menu pengguna: ' + user.name, 'aria-haspopup': 'true', 'aria-expanded': 'false' },
     icon('user', 20), h('span', { class: 'user-name', text: user.name }));
   const menu = h('div', { class: 'popover', hidden: true, role: 'menu' },
     h('div', { class: 'popover-who' }, h('strong', { text: user.name }), h('span', { class: 'muted', text: user.email }), h('span', { class: 'muted', text: user.role })),
