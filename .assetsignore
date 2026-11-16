@@ -1,5 +1,8 @@
 apps-script
 tests
+tools
+docs
 README.md
 .gitignore
 .assetsignore
+wrangler.jsonc

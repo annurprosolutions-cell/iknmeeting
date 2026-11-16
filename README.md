@@ -4,7 +4,9 @@ Sistem dokumen mesyuarat tanpa kertas untuk Institut Kanser Negara (dahulu dinam
 
 Sistem mesyuarat tanpa kertas. Frontend static (vanilla HTML/CSS/JS, tiada build) di Cloudflare Pages; backend Google Apps Script; data dalam Google Sheets; fail dalam Google Drive. Rujuk dokumen 01-PRD hingga 06-IPD.
 
-**Status: Fasa 0 hingga 4 dan Fasa 6 siap dibina** (Fasa 3 dalam bentuk "upload sahaja"). Fasa 5 (Minit dan Tindakan) ditangguh menunggu keputusan; Fasa 7 (ujian penuh, pilot, serahan) belum bermula.
+**Status (versi 0.7.0): Fasa 0 hingga 7 siap dibina** (Fasa 3 dalam bentuk "upload sahaja"). Baki sebelum live ialah perkara yang hanya boleh dibuat dengan akaun sebenar: pasang di akaun client, pilot satu mesyuarat, latihan, dan keputusan IKN tentang penggunaan awan. Lihat `docs/`.
+
+**Pemasangan di akaun client**: ikut `docs/PANDUAN-PEMASANGAN.md`. Hasilkan pakej bersih (nilai pemaju dikosongkan, `wrangler.jsonc` ditambah) dengan `node tools/make-release.js` > `dist/syuradocs-<versi>-client.zip`.
 
 ## Struktur
 
@@ -17,7 +19,10 @@ js/views/               login (S-01), dashboard (S-02), meetings (S-03), meeting
 sw.js, manifest.webmanifest, icons/  PWA; js/pwa.js (banner pasang), js/offline.js (agenda luar talian); tools/make-icons.js
 js/comments-panel.js    S-10 Komen & Cadangan (digunakan dalam S-04, S-08, S-09); js/notes.js nota peribadi (localStorage)
 js/materials-panel.js   S-07 Bahan (dalam tab Bahan S-04); js/upload.js muat naik base64 dengan kemajuan
-apps-script/            Code, Auth, Users, Meetings, Agenda, Materials, Feedback, State, Notify, Settings, Backup, DriveSync, Audit, Setup, Utils, appsscript.json
+js/minutes-panel.js     S-11 Minit; js/markdown.js pemapar Markdown selamat (DOM); js/actions-panel.js dan js/views/actions.js S-12 Tindakan
+apps-script/            17 fail .gs: Actions, Agenda, Audit, Auth, Backup, Code, DriveSync, Feedback, Materials, Meetings, Minutes, Notify, Settings, Setup, State, Users, Utils + appsscript.json
+docs/                   panduan pemasangan, Admin/Setiausaha/Ahli, latihan, pilot, keselamatan, akaun dan pemilikan, perbezaan daripada BSD
+tools/                  make-icons.js, make-release.js (pakej serahan client)
 tests/                  ujian backend (mock Apps Script) dan smoke test frontend
 ```
 
@@ -54,6 +59,12 @@ node tests/frontend.phase3.js   # borang baharu, gambar, agenda, bahan, penonton
 node tests/frontend.phase4.js   # Mod Mesyuarat: 3 pelayar serentak, polling, komen, nota, talian terputus
 node tests/notify.test.js       # Fasa 6: emel (jemputan, digest, peringatan, kuota), audit, tetapan, backup
 node tests/frontend.phase6.js   # S-14, PWA (manifest, service worker, luar talian, banner pasang)
+node tests/minutes.test.js      # Fasa 5: Minit (keterlihatan, versi, kelulusan) dan Tindakan (tertunggak, perkara berbangkit, emel)
+node tests/frontend.phase5.js   # Fasa 5: UI Minit/Tindakan dengan BACKEND SEBENAR dalam harness
+node tests/security.test.js     # Fasa 7: matriks kebenaran semua route x peranan, fuzz, kebocoran, imbasan kod, CSP
+node tests/frontend.a11y.js     # Fasa 7: axe-core WCAG 2.1 A/AA, cerah/gelap/telefon, papan kekunci
+node tests/perf.test.js         # Fasa 7: belanjawan bacaan Sheet setiap action
+node tests/run-all.js [--no-ui] # semua di atas berurutan
 node tests/cors-live.js         # BUKAN mock: panggil Apps Script sebenar (API_URL dalam config.js) melalui kod app
 ```
 
@@ -75,15 +86,27 @@ Ujian ini guna mock untuk Google (GIS dan tokeninfo) dan Apps Script. Ia **tidak
 
 Jika **ping pun gagal** dengan "Ralat dalaman", penghala Apps Script tidak dapat membina senarai action: sekurang-kurangnya satu fail `.gs` belum ditampal atau masih versi lama. Dari versi **0.6.1**, satu fail tertinggal tidak lagi merosakkan semua action; ping melaporkan fail yang hilang dan halaman log masuk memaparkannya.
 
-**Projek Apps Script mesti ada 15 fail `.gs`** (dan `appsscript.json`):
-`Agenda, Audit, Auth, Backup, Code, DriveSync, Feedback, Materials, Meetings, Notify, Settings, Setup, State, Users, Utils`.
+**Projek Apps Script mesti ada 17 fail `.gs`** (dan `appsscript.json`):
+`Actions, Agenda, Audit, Auth, Backup, Code, DriveSync, Feedback, Materials, Meetings, Minutes, Notify, Settings, Setup, State, Users, Utils`.
 
 Langkah:
-1. Ganti **Code.gs** dengan versi 0.6.1 dan pastikan semua 15 fail wujud dan versi terkini (terutama `Audit.gs`, `Settings.gs`, `Backup.gs`, `Notify.gs`, `Feedback.gs`, `State.gs`).
+1. Ganti **Code.gs** dengan versi terkini dan pastikan semua 17 fail wujud dan versi terkini (terutama `Audit.gs`, `Settings.gs`, `Backup.gs`, `Notify.gs`, `Feedback.gs`, `State.gs`).
 2. Deploy > Manage deployments > pensil > **Version: New version** > Deploy (deployment yang sama; menyimpan fail sahaja tidak mengemas kini web app).
 3. Muat semula halaman log masuk: ia akan menyenaraikan fail yang masih hilang.
 4. Jika masih "Ralat dalaman": Apps Script > **Executions** > klik pelaksanaan yang gagal; mesej (cth. `ReferenceError: apiSettingsGet_ is not defined`) menyebut function yang hilang.
 5. Semak dari terminal: `curl -sL -H 'Content-Type: text/plain' -d '{"action":"ping"}' <API_URL>`. Nilai `version` mesti sepadan dengan versi terkini dan tiada `missing`.
+
+## Fasa 5 dan 7 (versi 0.7.0): Minit, Tindakan Susulan, ujian penuh, serahan
+
+**Naik taraf daripada 0.6.x**: tampal `Minutes.gs` dan `Actions.gs` baharu; ganti `Code.gs`, `Feedback.gs`, `Notify.gs`, `Meetings.gs`, `Utils.gs`. **Run `setupSystem()`** (memasang trigger tindakan tertunggak Isnin ~08:30; tiada lajur baharu). Deploy **New version**. Push frontend (`sw.js` cache `syuradocs-shell-v2`), hard refresh.
+
+**Minit (F-06)**: tab Minit pada butiran mesyuarat. Templat mengikut format minit IKN, simpan automatik 30 saat, Markdown ringkas, versi naik bila dihantar semula selepas ditarik balik, Hantar untuk semakan > Pengerusi mesyuarat itu menyemak/komen > Sahkan. Cetak dengan blok tandatangan; PDF bertandatangan dilampirkan daripada tab Bahan. **Penyimpangan daripada BSD** (permintaan client): Draf staf sahaja; Untuk Semakan staf + Pengerusi mesyuarat itu; Disahkan semua ahli; Setiausaha tidak boleh mengesahkan; hanya Admin boleh buka semula. Lihat `docs/PERBEZAAN-DARIPADA-BSD.md`.
+
+**Tindakan (F-08)**: tab Tindakan (staf, Pengerusi mesyuarat itu, dan ahli yang ada tindakan sendiri) dan halaman `#/actions` (Tindakan Saya). Tertunggak dikira daripada tarikh akhir (tidak disimpan). Ahli hanya nampak tindakan sendiri dan menulis Maklum Balas. Tindakan belum selesai muncul sebagai Perkara Berbangkit pada mesyuarat bersambung (tanpa maklum balas). Emel: minit untuk semakan, minit disahkan, tindakan tertunggak (mingguan).
+
+**Fasa 7**: `tests/security.test.js`, `tests/frontend.a11y.js` (axe-core disertakan dalam `tests/vendor/`), `tests/perf.test.js`, `tests/run-all.js`; dokumen serahan dalam `docs/`. Satu pembetulan aksesibiliti (nama butang menu pengguna pada telefon).
+
+**Perkara yang belum dibuat (perlu akaun sebenar)**: pilot dan ujian beban 20 pengguna, ujian muat naik 16 MB, keputusan IKN tentang awan awam dan Akta Rahsia Rasmi, penyemak kedua minit.
 
 ## Fasa 6 (versi 0.6.0): Notifikasi emel, Audit, Tetapan, Backup, PWA
 
