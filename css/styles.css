@@ -418,3 +418,26 @@ textarea.input { resize: vertical; min-height: 120px; }
 .inline-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
 .shell:has(.offline-bar:not([hidden])) .main { padding-top: calc(var(--header-h) + 64px); }
 .shell.is-live:has(.offline-bar:not([hidden])) .main { padding-top: 0; }
+
+/* ---------- Fasa 5: minit dan tindakan ---------- */
+.minute-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 8px; }
+.minute-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 8px; }
+.minute-editor { width: 100%; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 14px; line-height: 1.5; min-height: 360px; }
+.minute-preview, .minute-doc { padding: 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+.minute-attach, .minute-history { margin-top: 16px; }
+.minute-cmt-h { margin-top: 24px; }
+.md h2, .md h3, .md h4 { margin: 16px 0 6px; }
+.md p, .md ul, .md ol { margin: 0 0 10px; }
+.md ol, .md ul { padding-left: 24px; }
+.sign-block { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-top: 40px; }
+.sign-line { border-bottom: 1px solid var(--text); height: 48px; margin: 0 0 6px; }
+.actions-table tr.is-overdue td:first-child { border-left: 3px solid var(--danger); }
+.carry, .overdue-list { margin-bottom: 16px; }
+.overdue-list { list-style: none; padding: 0; display: grid; gap: 6px; }
+@media (max-width: 640px) { .sign-block { grid-template-columns: 1fr; } }
+@media print {
+  .tabs, .page-actions, .minute-tools, .minute-attach, .minute-cmt-h, .cmt, .minute-history, .detail-head .page-actions { display: none !important; }
+  .minute-doc, .minute-preview { border: 0; padding: 0; }
+  .actions-table { font-size: 11pt; } .actions-table th, .actions-table td { border: 1px solid #000; padding: 4px 6px; }
+  @page { margin: 18mm; }
+}

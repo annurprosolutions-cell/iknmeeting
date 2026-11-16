@@ -25,7 +25,7 @@ router.define('/meetings/:id/live', { roles: ALL, view: () => import('./views/me
 router.define('/meetings/:id/agenda', { roles: STAFF, view: () => import('./views/meeting-agenda.js'), meta: ph('Editor Agenda') });
 router.define('/meetings/:id/materials/:mid', { roles: ALL, view: () => import('./views/material-viewer.js'), meta: ph('Penonton Bahan') });
 router.define('/meetings/:id', { roles: ALL, view: () => import('./views/meeting-detail.js'), meta: ph('Butiran Mesyuarat') });
-router.define('/actions', { roles: STAFF, view: () => import('./views/placeholder.js'), meta: ph('Tindakan Saya', 'Fasa 5') });
+router.define('/actions', { roles: ALL, view: () => import('./views/actions.js'), meta: ph('Tindakan Saya') });
 router.define('/users', { roles: ADMIN, view: () => import('./views/users.js'), meta: ph('Pengurusan Pengguna') });
 router.define('/audit', { roles: ADMIN, view: () => import('./views/audit.js'), meta: ph('Audit & Tetapan') });
 

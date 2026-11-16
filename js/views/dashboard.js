@@ -42,6 +42,8 @@ export function render(container, { user }) {
       return;
     }
 
+    let overdue = null;
+    try { overdue = (await api('actions.list', { scope: staff ? 'tertunggak' : 'saya' })).actions.filter((a) => staff || a.status !== 'Selesai' && a.status !== 'Dibatalkan'); } catch (e) { overdue = null; }
     const today = todayMyt();
     const upcoming = meetings
       .filter((m) => m.status === 'Sedang Berlangsung' || (m.status === 'Dijadualkan' && m.date >= today))
@@ -57,7 +59,9 @@ export function render(container, { user }) {
       drafts.length ? h('section', { class: 'card section' }, h('h2', { text: 'Draf anda' }),
         h('p', { class: 'muted small', text: 'Draf belum kelihatan kepada ahli sehingga diterbitkan.' }),
         h('div', { class: 'mcard-list' }, drafts.slice(0, 5).map((m) => meetingCard(m)))) : null,
-      staff ? h('section', { class: 'card section' }, h('h2', { text: 'Tindakan tertunggak' }), emptyState('Tiada tindakan tertunggak')) : null);
+      staff || (overdue && overdue.length) ? h('section', { class: 'card section' }, h('h2', { text: staff ? 'Tindakan tertunggak' : 'Tindakan saya' }),
+        overdue && overdue.length ? h('ul', { class: 'overdue-list' }, overdue.slice(0, 5).map((a) => h('li', {}, h('a', { href: '#/meetings/' + encodeURIComponent(a.meeting_id), text: a.title }), h('span', { class: 'small muted', text: ` - ${a.owner_name}${a.due_date ? ', akhir ' + fmtDate(a.due_date) : ''}` })))) : emptyState('Tiada tindakan tertunggak'),
+        h('p', {}, h('a', { href: '#/actions', text: 'Lihat semua tindakan' }))) : null);
   }
   load();
 }

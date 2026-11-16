@@ -2,15 +2,15 @@
 // Rangkaian dahulu supaya kod baharu selepas deploy sentiasa diambil bila ada talian (tiada risiko frontend lama + backend baharu).
 // Hanya fail sama-asal (GET) disimpan. Panggilan API ke Apps Script (silang-asal, POST) TIDAK disentuh.
 // Data agenda luar talian disimpan oleh aplikasi sendiri (js/offline.js), bukan oleh service worker.
-const CACHE = 'syuradocs-shell-v1';
+const CACHE = 'syuradocs-shell-v2';
 const SHELL = [
   './', 'index.html', 'config.js', 'manifest.webmanifest', 'favicon.svg', 'css/styles.css',
   'icons/icon-192.png', 'icons/icon-512.png',
   'js/theme-init.js', 'js/app.js', 'js/api.js', 'js/auth.js', 'js/router.js', 'js/shell.js', 'js/ui.js', 'js/icons.js', 'js/upload.js',
-  'js/meeting-bits.js', 'js/materials-panel.js', 'js/comments-panel.js', 'js/notes.js', 'js/pwa.js', 'js/offline.js',
+  'js/meeting-bits.js', 'js/materials-panel.js', 'js/comments-panel.js', 'js/notes.js', 'js/pwa.js', 'js/offline.js', 'js/markdown.js', 'js/minutes-panel.js', 'js/actions-panel.js',
   'js/views/login.js', 'js/views/dashboard.js', 'js/views/meetings.js', 'js/views/meeting-detail.js', 'js/views/meeting-form.js',
   'js/views/meeting-agenda.js', 'js/views/meeting-mode.js', 'js/views/material-viewer.js', 'js/views/users.js', 'js/views/audit.js',
-  'js/views/placeholder.js', 'js/views/noaccess.js'
+  'js/views/actions.js', 'js/views/placeholder.js', 'js/views/noaccess.js'
 ];
 
 self.addEventListener('install', (e) => {

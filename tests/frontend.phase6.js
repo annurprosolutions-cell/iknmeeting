@@ -126,7 +126,7 @@ function handle(b) {
   await pw.waitForFunction(() => navigator.serviceWorker && navigator.serviceWorker.controller === null ? navigator.serviceWorker.getRegistration().then((r) => !!(r && r.active)) : true);
   await pw.evaluate(() => navigator.serviceWorker.ready); await pw.reload(); await pw.waitForSelector('.app-header');
   assert.ok(await pw.evaluate(() => !!navigator.serviceWorker.controller)); ok('service worker aktif dan mengawal halaman');
-  const cached = await pw.evaluate(async () => (await (await caches.open('syuradocs-shell-v1')).keys()).map((r) => new URL(r.url).pathname));
+  const cached = await pw.evaluate(async () => (await (await caches.open('syuradocs-shell-v2')).keys()).map((r) => new URL(r.url).pathname));
   assert.ok(cached.includes('/js/app.js') && cached.includes('/css/styles.css') && cached.includes('/index.html') || cached.includes('/')); ok('shell dicache (' + cached.length + ' fail)');
   const swSrc = fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8'); const jsFiles = [];
   (function walk(d) { for (const f of fs.readdirSync(path.join(ROOT, d))) { const rel = d + '/' + f; if (fs.statSync(path.join(ROOT, rel)).isDirectory()) walk(rel); else if (f.endsWith('.js')) jsFiles.push(rel); } })('js');

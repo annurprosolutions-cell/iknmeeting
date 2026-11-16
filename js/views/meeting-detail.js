@@ -2,6 +2,8 @@
 import { h, clear, button, busy, badge, toast, confirmDialog, emptyState, errorBanner, skeletonRows, meetingStatusBadge, attendanceBadge, fmtDate, fmtDateTime, weekday, fmtTimeRange, avatar } from '../ui.js';
 import { materialsPanel } from '../materials-panel.js';
 import { commentsPanel } from '../comments-panel.js';
+import { minutesPanel } from '../minutes-panel.js';
+import { actionsPanel } from '../actions-panel.js';
 import { saveMeeting, loadMeeting } from '../offline.js';
 import { icon } from '../icons.js';
 import { api } from '../api.js';
@@ -11,20 +13,17 @@ const ALL_TABS = [
   { id: 'materials', label: 'Bahan' },
   { id: 'comments', label: 'Komen & Cadangan' },
   { id: 'members', label: 'Ahli & Kehadiran' },
-  { id: 'minutes', label: 'Minit', staffOnly: true },
-  { id: 'actions', label: 'Tindakan', staffOnly: true }
+  { id: 'minutes', label: 'Minit' },
+  { id: 'actions', label: 'Tindakan' }
 ];
-const SOON = {
-  minutes: ['Minit belum tersedia', 'Skrin minit dibina pada Fasa 5.'],
-  actions: ['Tiada tindakan', 'Tindakan susulan dibina pada Fasa 5.']
-};
 const CAT_KIND = { Makluman: 'info', Perbincangan: 'teal', Keputusan: 'warning', Pengesahan: 'success' };
 
 export function render(container, { user, params }) {
   const staff = user.role === 'Admin' || user.role === 'Setiausaha';
   let m = null, tab = 'agenda', comments = null;
   // Ahli/Pengerusi: dokumen dan kehadiran sahaja (permintaan client 12/11/2026). Minit bertandatangan ada dalam tab Bahan.
-  const TABS = ALL_TABS.filter((t) => staff || !t.staffOnly);
+  let TABS = ALL_TABS;
+  let minutes = null;
   const host = h('div');
   container.append(host);
 
@@ -40,6 +39,8 @@ export function render(container, { user, params }) {
           : errorBanner(e.message, load));
       return;
     }
+    TABS = ALL_TABS.filter((t) => t.id !== 'actions' || staff || isChair() || m.my_action_count > 0);
+    if (!TABS.some((t) => t.id === tab)) tab = 'agenda';
     draw();
   }
 
@@ -59,6 +60,7 @@ export function render(container, { user, params }) {
           h('div', { class: 'agenda-meta' }, badge(a.category, CAT_KIND[a.category] || 'muted'), a.presenter_name ? h('span', { class: 'small muted', text: 'Pembentang: ' + a.presenter_name }) : null, a.duration_min ? h('span', { class: 'small muted', text: a.duration_min + ' min' }) : null))))) : emptyState('Agenda belum disediakan')));
   }
 
+  const isChair = () => Boolean(m.pengerusi_email) && String(m.pengerusi_email).trim().toLowerCase() === String(user.email || '').trim().toLowerCase();
   const canEdit = () => staff && m.status !== 'Dibatalkan' && (m.status !== 'Selesai' || user.role === 'Admin');
 
   function header() {
@@ -103,6 +105,8 @@ export function render(container, { user, params }) {
   function agendaPanel() {
     const wrap = h('div');
     if (staff && canEdit()) wrap.append(h('p', {}, button('Edit agenda', { kind: 'secondary', iconName: 'edit', onClick: () => { location.hash = `#/meetings/${encodeURIComponent(m.id)}/agenda`; } })));
+    if ((m.carry_over || []).length) wrap.append(h('div', { class: 'carry' }, h('h3', { text: 'Perkara Berbangkit' }), h('p', { class: 'muted small', text: 'Tindakan mesyuarat lepas yang belum selesai.' }),
+      h('ul', {}, m.carry_over.map((c) => h('li', {}, h('strong', { text: c.title }), ` - ${c.owner_name}${c.due_date ? ', tarikh akhir ' + fmtDate(c.due_date) : ''} `, badge(c.status, 'warning'))))));
     if (!m.agenda.length) { wrap.append(emptyState('Agenda belum disediakan', staff ? 'Tekan Edit agenda untuk menambah item.' : undefined)); return wrap; }
     wrap.append(h('ol', { class: 'agenda-list' }, m.agenda.map((a) => {
       const mats = m.materials.filter((x) => x.agenda_id === a.id && x.status === 'Aktif');
@@ -157,10 +161,13 @@ export function render(container, { user, params }) {
     if (tab === 'members') return membersPanel();
     if (tab === 'materials') return materialsPanel({ m, user, reload: load });
     if (tab === 'comments') { if (comments) comments.destroy(); comments = commentsPanel({ m, user, filters: true }); return comments.el; }
-    return emptyState(SOON[tab][0], SOON[tab][1]);
+    if (tab === 'minutes') { if (minutes) minutes.destroy(); minutes = minutesPanel({ m, user }); return minutes.el; }
+    if (tab === 'actions') return actionsPanel({ m, user, canManage: staff || isChair(), members: m.members.filter((x) => x.email), onChange: () => {} }).el;
+    return emptyState('Tiada kandungan');
   }
 
   function draw() {
+    if (minutes) { minutes.destroy(); minutes = null; }
     const tabs = h('div', { class: 'tabs', role: 'tablist', 'aria-label': 'Bahagian mesyuarat' });
     TABS.forEach((t) => {
       const b = h('button', { type: 'button', role: 'tab', id: 'tab-' + t.id, class: 'tab' + (t.id === tab ? ' is-on' : ''), 'aria-selected': t.id === tab ? 'true' : 'false', 'aria-controls': 'tabpanel', tabindex: t.id === tab ? '0' : '-1',

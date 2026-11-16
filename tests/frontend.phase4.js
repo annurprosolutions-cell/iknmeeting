@@ -84,7 +84,7 @@ function handle(b) {
 
   // ===== S-04: tab dan butang =====
   await a1.goto(base + '/#/meetings/MTG-1'); await a1.waitForSelector('h1:has-text("MESYUARAT JAWATANKUASA HMI IKN")');
-  assert.deepStrictEqual(await a1.$$eval('[role=tab]', (t) => t.map((x) => x.textContent)), ['Agenda', 'Bahan', 'Komen & Cadangan', 'Ahli & Kehadiran']); ok('Ahli: tab Komen & Cadangan ada; Minit/Tindakan tiada');
+  assert.deepStrictEqual(await a1.$$eval('[role=tab]', (t) => t.map((x) => x.textContent)), ['Agenda', 'Bahan', 'Komen & Cadangan', 'Ahli & Kehadiran', 'Minit']); ok('Ahli: tab Komen & Cadangan ada; Tindakan tiada');
   assert.ok(await a1.locator('button:has-text("Mod Mesyuarat")').isVisible()); ok('butang Mod Mesyuarat untuk Ahli');
 
   // ===== Komen sebelum mesyuarat (tab S-04 / S-10) =====

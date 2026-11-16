@@ -146,7 +146,7 @@ function handle(body) {
   await page.goto(base + '/'); await page.waitForSelector('#fake-google');
   await page.evaluate(() => { window.__who = 'cred-ahli'; }); await page.click('#fake-google'); await page.waitForSelector('.sidenav');
   assert.deepStrictEqual(await page.$$eval('.sidenav .nav-link', (a) => a.map((x) => x.textContent)), ['Dashboard', 'Mesyuarat']);
-  await page.goto(base + '/#/actions'); await page.waitForSelector('text=Tiada akses');
+  await page.goto(base + '/#/actions'); await page.waitForSelector('h1:has-text("Tindakan Saya")');
   await page.goto(base + '/#/users'); await page.waitForSelector('text=Tiada akses'); ok('Ahli: menu terhad & /users = Tiada akses');
   await page.goto(base + '/#/tiada'); await page.waitForSelector('text=Halaman tidak dijumpai'); ok('404 halaman');
   ({ page, problems } = await newPage());
