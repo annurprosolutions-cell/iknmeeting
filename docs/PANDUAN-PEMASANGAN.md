@@ -80,7 +80,7 @@ Apps Script > Project Settings > **Script Properties** > Add: `GOOGLE_CLIENT_ID`
 1. Daftar akaun GitHub dengan emel client (`github.com/signup`); sahkan emel; aktifkan 2FA dan simpan recovery codes.
 2. New repository: nama **syuradocs**, **Private**, tanpa README/gitignore/licence.
 3. Muat naik kandungan zip (bukan zip itu sendiri):
-   - **Cara web**: dalam repo kosong tekan "uploading an existing file", seret **semua fail dan folder** dalam folder yang di-unzip (jumlah 93 fail, di bawah had 100 sekali muat naik), Commit changes ke `main`.
+   - **Cara web**: dalam repo kosong tekan "uploading an existing file", seret **semua fail dan folder** dalam folder yang di-unzip (jumlah 95 fail, di bawah had 100 sekali muat naik web; jika GitHub menolak, gunakan cara terminal), Commit changes ke `main`.
    - **Cara terminal** (lebih dipercayai untuk fail tersembunyi):
      ```bash
      cd syuradocs-0.7.0-client
