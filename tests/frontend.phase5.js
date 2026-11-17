@@ -101,6 +101,8 @@ call('actions.save', { meeting_id: M, title: 'Penambahbaikan pengumuman solat', 
   await a2.goto(base + '/#/actions'); await a2.waitForSelector('h1:has-text("Tindakan Saya")'); await a2.waitForSelector('.actions-table'); assert.ok(await a2.$('.actions-table a:has-text("MESYUARAT HMI")')); ok('ahli: halaman /actions (menu staf sahaja)');
   await chair.goto(base + '/#/meetings/' + M); await chair.waitForSelector('[role=tab]'); await tab(chair, 'Tindakan'); await chair.waitForSelector('button:has-text("Tambah tindakan")'); ok('Pengerusi mesyuarat boleh tambah tindakan');
   await sec.goto(base + '/#/dashboard'); await sec.waitForSelector('h2:has-text("Tindakan tertunggak")'); await sec.waitForTimeout(500); ok('dashboard: widget tindakan tertunggak');
+  for (const [pg, hash] of [[sec, '/#/dashboard'], [a1, '/#/dashboard'], [sec, '/#/meetings'], [sec, '/#/actions']]) { await pg.goto(base + hash); await pg.waitForTimeout(600); const txt = await pg.evaluate(() => document.querySelector('main, #app').innerText); assert.ok(!/\bnull\b|\bundefined\b|\[object Object\]/.test(txt), 'teks aneh pada ' + hash + ': ' + txt.slice(0, 200)); }
+  ok('tiada teks "null"/"undefined" pada dashboard, mesyuarat, tindakan');
 
   // ===== Cetak =====
   await open(sec); await tab(sec, 'Minit'); await sec.waitForSelector('.minute-doc'); await sec.emulateMedia({ media: 'print' });

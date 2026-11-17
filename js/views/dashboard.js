@@ -1,5 +1,5 @@
 // S-02 Dashboard: mesyuarat akan datang. (Bahan baharu: Fasa 3. Tindakan tertunggak: Fasa 5. Banner pasang app: Fasa 6.)
-import { h, clear, button, badge, emptyState, errorBanner, skeletonRows, todayMyt } from '../ui.js';
+import { h, clear, append, button, badge, emptyState, errorBanner, skeletonRows, todayMyt } from '../ui.js';
 import { api } from '../api.js';
 import { installMode, promptInstall, dismissInstall, onChange } from '../pwa.js';
 import { listMeetings } from '../offline.js';
@@ -50,7 +50,7 @@ export function render(container, { user }) {
       .sort((a, b) => (a.date + a.start_time).localeCompare(b.date + b.start_time));
     const drafts = staff ? meetings.filter((m) => m.status === 'Draf').sort((a, b) => a.date.localeCompare(b.date)) : [];
 
-    clear(host).append(
+    append(clear(host), [
       h('section', { class: 'card section' }, h('h2', { text: 'Mesyuarat akan datang' }),
         upcoming.length
           ? h('div', { class: 'mcard-list' }, upcoming.slice(0, 5).map((m) => meetingCard(m, { showAttendance: true })))
@@ -61,7 +61,7 @@ export function render(container, { user }) {
         h('div', { class: 'mcard-list' }, drafts.slice(0, 5).map((m) => meetingCard(m)))) : null,
       staff || (overdue && overdue.length) ? h('section', { class: 'card section' }, h('h2', { text: staff ? 'Tindakan tertunggak' : 'Tindakan saya' }),
         overdue && overdue.length ? h('ul', { class: 'overdue-list' }, overdue.slice(0, 5).map((a) => h('li', {}, h('a', { href: '#/meetings/' + encodeURIComponent(a.meeting_id), text: a.title }), h('span', { class: 'small muted', text: ` - ${a.owner_name}${a.due_date ? ', akhir ' + fmtDate(a.due_date) : ''}` })))) : emptyState('Tiada tindakan tertunggak'),
-        h('p', {}, h('a', { href: '#/actions', text: 'Lihat semua tindakan' }))) : null);
+        h('p', {}, h('a', { href: '#/actions', text: 'Lihat semua tindakan' }))) : null]);
   }
   load();
 }
